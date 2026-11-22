@@ -1,21 +1,19 @@
-# BikePark Metro Manila — Free-only with Voice Assistance
+# BikePark Metro Manila — Free GPS-triggered voice guidance
 
-This build adds browser-based spoken route instructions using the device's built-in SpeechSynthesis API. No paid voice API or Google Maps API key is required.
-
-## Voice features
-- "Hear directions" button reads the route instructions aloud.
-- "Start" begins GPS tracking and starts spoken directions.
-- Press the voice button again to stop speech; press it again to replay.
-- Exiting full-screen navigation stops speech.
-
-## Existing free features
-- Leaflet + OpenStreetMap map
-- Device GPS and follow-me
-- OpenStreetMap-based bicycle, walking and driving route providers
-- Google Maps traffic opens externally (traffic is not embedded in the app)
-
-## Important voice limitation
-Voice currently reads the route's instruction list in sequence when started; it is not yet turn-triggered by GPS proximity, and it does not automatically reroute. Keep the map visible and follow road signs. Browser/device speech voices vary by phone and language settings. GPS requires HTTPS and permission.
+## New behavior
+- Voice navigation starts only after the user taps START.
+- The browser continuously watches device GPS while navigation is active.
+- Turn prompts are tied to maneuver coordinates returned by the routing service.
+- The app speaks when the rider is within approximately 220 metres of the next maneuver, including an estimated distance.
+- Arrival is announced within approximately 35 metres of the destination.
+- Prompts are advanced once, so the same turn is not repeatedly announced.
+- Voice uses the browser's built-in SpeechSynthesis API; no paid voice provider or API key is needed.
 
 ## Deploy
-Upload `index.html` and this `README.md` to the root of the `bikepark-metro-manila` GitHub repository, replacing the previous versions, then commit to `main`.
+Replace the existing root `index.html` and `README.md` in the GitHub repository and commit to `main`.
+
+## Limitations
+- Prompt accuracy depends on phone GPS accuracy and the quality of route maneuver coordinates.
+- Public routing services can be rate-limited or temporarily unavailable.
+- Browser/device voice availability and language voices vary.
+- Keep the browser tab open and screen awake during navigation. Test voice prompts safely before riding.

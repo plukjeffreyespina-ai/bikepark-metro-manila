@@ -378,44 +378,68 @@ window.toggleLiveFollow=()=>{
  if(liveFollow&&lastLivePosition)map.panTo([lastLivePosition.lat,lastLivePosition.lng]);
 };
 
+
 let routeVoiceEnabled=true, routeVoiceQueue=[], routeVoiceIndex=0, routeVoiceSpeaking=false;
+let liveVoicePrompts=[], liveVoicePromptIndex=0, liveVoiceStarted=false, liveVoiceLastSpokenAt=0, liveVoiceArrivalAnnounced=false;
+function routeDistanceMeters(a,b){
+ const R=6371000,toRad=v=>v*Math.PI/180;
+ const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lng-a.lng);
+ const lat1=toRad(a.lat),lat2=toRad(b.lat);
+ const x=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+ return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+window.sayLiveNavigation=(message)=>{
+ if(!("speechSynthesis" in window)||!message)return;
+ window.speechSynthesis.cancel();
+ const utterance=new SpeechSynthesisUtterance(message);
+ utterance.lang="en-PH";utterance.rate=0.94;utterance.pitch=1;
+ window.speechSynthesis.speak(utterance);
+ $("mapStatus").textContent=message;
+};
+window.updateLiveVoiceGuidance=(lat,lng)=>{
+ if(!liveVoiceStarted||!routeVoiceEnabled)return;
+ const here={lat,lng},now=Date.now();
+ if(now-liveVoiceLastSpokenAt<3500)return;
+ if(liveVoicePromptIndex<liveVoicePrompts.length){
+  const prompt=liveVoicePrompts[liveVoicePromptIndex];
+  const distance=routeDistanceMeters(here,prompt);
+  if(distance<=220){
+   liveVoicePromptIndex++;
+   liveVoiceLastSpokenAt=now;
+   window.sayLiveNavigation(distance<=65?prompt.text:"In about "+Math.round(distance/25)*25+" meters, "+prompt.text);
+   return;
+  }
+ }
+ if(routeDestination && !liveVoiceArrivalAnnounced && routeDistanceMeters(here,{lat:Number(routeDestination.lat),lng:Number(routeDestination.lon??routeDestination.lng)})<=35){
+  liveVoiceArrivalAnnounced=true;liveVoiceLastSpokenAt=now;
+  window.sayLiveNavigation("You have arrived at your destination.");
+ }
+};
+window.prepareLiveVoicePrompts=(prompts,destination)=>{
+ liveVoicePrompts=(prompts||[]).filter(p=>Number.isFinite(+p.lat)&&Number.isFinite(+p.lng)).map(p=>({lat:+p.lat,lng:+p.lng,text:p.text}));
+ liveVoicePromptIndex=0;liveVoiceStarted=false;liveVoiceArrivalAnnounced=false;liveVoiceLastSpokenAt=0;
+ routeDestination=destination||routeDestination;
+};
+
 window.stopRouteVoice=()=>{
  if("speechSynthesis" in window)window.speechSynthesis.cancel();
- routeVoiceQueue=[];routeVoiceIndex=0;routeVoiceSpeaking=false;
+ routeVoiceQueue=[];routeVoiceIndex=0;routeVoiceSpeaking=false;liveVoiceStarted=false;
  const b=document.getElementById("routeVoiceBtn");
  if(b)b.textContent="🔊 Hear directions";
 };
 window.speakRouteDirections=()=>{
  if(!("speechSynthesis" in window)){
-  $("mapStatus").textContent="Voice guidance is not supported by this browser.";
-  return;
+  $("mapStatus").textContent="Voice guidance is not supported by this browser.";return;
  }
  if(routeVoiceSpeaking){window.stopRouteVoice();return;}
- const lines=(window.currentRouteInstructions||[]);
- routeVoiceQueue=lines.length?lines:["Follow the blue route on the map. Continue toward your destination."];
- routeVoiceIndex=0;routeVoiceSpeaking=true;
- const button=document.getElementById("routeVoiceBtn");
- if(button)button.textContent="⏹ Stop voice directions";
- const sayNext=()=>{
-  if(!routeVoiceSpeaking||routeVoiceIndex>=routeVoiceQueue.length){
-   routeVoiceSpeaking=false;
-   if(button)button.textContent="🔊 Hear directions again";
-   $("mapStatus").textContent="Voice directions finished. Follow the map and road signs.";
-   return;
-  }
-  const utterance=new SpeechSynthesisUtterance(routeVoiceQueue[routeVoiceIndex++]);
-  utterance.lang="en-PH";utterance.rate=0.92;utterance.pitch=1;
-  utterance.onend=sayNext;
-  utterance.onerror=()=>{routeVoiceSpeaking=false;if(button)button.textContent="🔊 Hear directions again";};
-  window.speechSynthesis.speak(utterance);
- };
- $("mapStatus").textContent="Speaking route directions…";
- sayNext();
+ const first=liveVoicePrompts[liveVoicePromptIndex];
+ window.sayLiveNavigation(first?"Voice navigation is ready. I will announce each turn as you approach it.":"Voice navigation is ready. Follow the blue route and watch for the destination.");
 };
 
 window.startNavigation=()=>{
  window.liveGPSZoomed=false;
- window.speakRouteDirections();
+ liveVoiceStarted=true;liveVoicePromptIndex=0;liveVoiceArrivalAnnounced=false;liveVoiceLastSpokenAt=0;
+ window.sayLiveNavigation("Navigation started. Follow the blue route. I will speak when you are approaching your next turn.");
  liveFollow=true;
  $("followBtn").textContent="◎ Following";
  $("mapStatus").textContent="Starting live GPS…";
@@ -446,6 +470,7 @@ window.startLiveTracking=()=>{
    else map.panTo([lat,lng],{animate:true,duration:.5});
   }
   $("mapStatus").textContent="Live GPS · accuracy ±"+Math.round(pos.coords.accuracy)+" m";
+  window.updateLiveVoiceGuidance(lat,lng);
  },err=>{
   $("mapStatus").textContent=err.code===1?"GPS permission denied":"GPS signal unavailable";
  },{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
@@ -547,7 +572,13 @@ window.routeFromCoordinates=async(id,origin)=>{
      if(coords.length<2)throw new Error("Valhalla route geometry was empty");
      const summary=trip.summary||{};
      route={coords,distance:Number(summary.length||0)*1000,time:Number(summary.time||0)};
-     for(const leg of legs)for(const m of (leg.maneuvers||[])){if(m.instruction)instructions.push(m.instruction);}
+     const voicePrompts=[];
+     for(const leg of legs)for(const m of (leg.maneuvers||[])){
+      if(m.instruction)instructions.push(m.instruction);
+      const point=coords[Math.max(0,Math.min(coords.length-1,Number(m.begin_shape_index||0)))];
+      if(m.instruction&&point)voicePrompts.push({lat:point[0],lng:point[1],text:m.instruction});
+     }
+     window.prepareLiveVoicePrompts(voicePrompts,{lat:dest.lat,lon:dest.lon});
      routeFound=true;
     }catch(err){lastError=err;}
    }
@@ -558,7 +589,15 @@ window.routeFromCoordinates=async(id,origin)=>{
    const response=await fetch(url);if(!response.ok)throw new Error("Route service is unavailable. Please try again.");
    const data=await response.json();if(data.code!=="Ok"||!data.routes?.length)throw new Error("No route found for these points.");
    const r=data.routes[0];route={coords:r.geometry.coordinates.map(c=>[c[1],c[0]]),distance:r.distance,time:r.duration};
-   for(const leg of r.legs||[])for(const step of leg.steps||[]){const name=step.name?" on "+step.name:"";instructions.push((step.maneuver?.type||"Continue")+(step.maneuver?.modifier?" "+step.maneuver.modifier:"")+name);}
+   const voicePrompts=[];
+   for(const leg of r.legs||[])for(const step of leg.steps||[]){
+    const name=step.name?" on "+step.name:"";
+    const text=(step.maneuver?.type||"Continue")+(step.maneuver?.modifier?" "+step.maneuver.modifier:"")+name;
+    instructions.push(text);
+    const loc=step.maneuver?.location;
+    if(loc?.length>=2)voicePrompts.push({lat:loc[1],lng:loc[0],text});
+   }
+   window.prepareLiveVoicePrompts(voicePrompts,{lat:dest.lat,lon:dest.lon});
   }
   if(routeLayer)map.removeLayer(routeLayer);
   routeLayer=L.layerGroup().addTo(map);
