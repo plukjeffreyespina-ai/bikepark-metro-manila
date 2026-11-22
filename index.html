@@ -80,6 +80,9 @@ button:focus-visible{outline:3px solid rgba(28,161,111,.35);outline-offset:2px}
 .route-nav-actions button{border:0;border-radius:12px;padding:10px 12px;background:#fff;color:#123d2b;font-weight:800;box-shadow:0 4px 16px #102c1b30}
 .route-nav-actions .traffic-action{background:#fce9b7;color:#694600}
 .route-hud{position:fixed;z-index:5001;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);max-height:27vh;overflow:auto;background:#fffF;border:1px solid #dce9df;border-radius:16px;padding:12px 14px;box-shadow:0 8px 28px #102c1b30;backdrop-filter:blur(10px);font-size:13px;color:#183a2a}
+
+.route-start-btn{display:block;width:100%;margin:0 0 8px;padding:13px 16px;border:0;border-radius:12px;background:#087f4f;color:#fff;font-size:15px;font-weight:850;box-shadow:0 4px 14px #087f4f35}
+.route-start-btn:active{transform:scale(.99)}
 .route-hud strong{font-size:15px}.route-hud .route-hud-meta{color:#5a6e62;margin-top:4px}
 .route-hud ol{margin:7px 0 0;padding-left:20px;max-height:90px;overflow:auto}
 .route-fullscreen .leaflet-control-zoom{margin-top:76px!important}
@@ -370,6 +373,24 @@ window.toggleLiveFollow=()=>{
  $("followBtn").textContent=liveFollow?"◎ Following":"◎ Follow me";
  if(liveFollow&&lastLivePosition)map.panTo([lastLivePosition.lat,lastLivePosition.lng]);
 };
+window.startNavigation=()=>{
+ window.liveGPSZoomed=false;
+ liveFollow=true;
+ $("followBtn").textContent="◎ Following";
+ $("mapStatus").textContent="Starting live GPS…";
+ if(routeHud){
+  const b=routeHud.querySelector("#startNavigationBtn");
+  if(b){b.textContent="◎ LIVE LOCATION ACTIVE";b.disabled=true;b.style.opacity=".8";}
+ }
+ if(!navigator.geolocation){
+  $("mapStatus").textContent="GPS is not available in this browser.";
+  return;
+ }
+ window.startLiveTracking();
+ if(lastLivePosition){
+  map.setView([lastLivePosition.lat,lastLivePosition.lng],17,{animate:true});
+ }
+};
 window.startLiveTracking=()=>{
  if(!navigator.geolocation)return;
  if(liveWatchId!==null)navigator.geolocation.clearWatch(liveWatchId);
@@ -379,7 +400,10 @@ window.startLiveTracking=()=>{
   if(!liveLocationMarker){
    liveLocationMarker=L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#1674d1",fillOpacity:1}).addTo(map).bindPopup("Your live location");
   }else liveLocationMarker.setLatLng([lat,lng]);
-  if(liveFollow)map.panTo([lat,lng],{animate:true,duration:.5});
+  if(liveFollow){
+   if(!window.liveGPSZoomed){map.setView([lat,lng],17,{animate:true});window.liveGPSZoomed=true;}
+   else map.panTo([lat,lng],{animate:true,duration:.5});
+  }
   $("mapStatus").textContent="Live GPS · accuracy ±"+Math.round(pos.coords.accuracy)+" m";
  },err=>{
   $("mapStatus").textContent=err.code===1?"GPS permission denied":"GPS signal unavailable";
@@ -467,11 +491,10 @@ window.routeFromCoordinates=async(id,origin)=>{
   details.innerHTML=instructions.length?`<b>Turn-by-turn steps</b><ol class="route-steps">${instructions.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:`<div class="hint">Bicycle route shown on map. Follow the mapped path and local traffic signs. Detailed cycling turn instructions are not available from this route service.</div>`;
   if(routeHud)routeHud.remove();
   routeHud=document.createElement("div");routeHud.className="route-hud";
-  routeHud.innerHTML=`<strong>${esc(p.name)}</strong><div class="route-hud-meta">${(route.distance/1000).toFixed(1)} km · approx. ${Math.max(1,Math.round(route.time/60))} min · ${mode==="cycling"?"Bicycle":mode==="walking"?"Walking":"Driving"}</div>`+(instructions.length?`<ol>${instructions.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:"<div class='route-hud-meta'>Follow the blue route and local road signs.</div>");
+  routeHud.innerHTML=`<button class="route-start-btn" id="startNavigationBtn" onclick="window.startNavigation()">▶ START · ZOOM TO MY LOCATION</button><strong>${esc(p.name)}</strong><div class="route-hud-meta">${(route.distance/1000).toFixed(1)} km · approx. ${Math.max(1,Math.round(route.time/60))} min · ${mode==="cycling"?"Bicycle":mode==="walking"?"Walking":"Driving"}</div>`+(instructions.length?`<ol>${instructions.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:"<div class='route-hud-meta'>Follow the blue route and local road signs.</div>");
   document.body.appendChild(routeHud);
   $("modalBack").style.display="none";
   window.enterRouteFullscreen();
-  if(window.routeUsesLiveGPS)window.startLiveTracking();
  }catch(e){
   const message=e.message||"Could not build route. Please try again.";
   status.textContent=message;
