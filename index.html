@@ -314,22 +314,54 @@ window.routeFromCoordinates=async(id,origin)=>{
   if(!dest)throw new Error("Destination location not found. Please confirm its address.");
   const mode=$("routeMode").value;let route,instructions=[];
   if(mode==="cycling"){
-   // Try multiple BRouter profiles so a temporary profile/service failure does not immediately break cycling directions.
+   // Primary: BRouter. Fallback: Valhalla bicycle routing.
+   let routeFound=false, lastError=null;
    const profiles=["trekking","fastbike","safety"];
-   let lastError=null, feature=null;
    for(const profileName of profiles){
     try{
      const url="https://brouter.de/brouter?lonlats="+origin.join(",")+","+dest.lon+","+dest.lat+"&profile="+profileName+"&alternativeidx=0&format=geojson";
      const response=await fetch(url,{headers:{"Accept":"application/geo+json,application/json"}});
-     if(!response.ok)throw new Error("BRouter returned HTTP "+response.status);
+     if(!response.ok)throw new Error("BRouter HTTP "+response.status);
      const data=await response.json();
-     feature=data.features?.[0];
-     if(!feature)throw new Error("No bicycle route returned for this profile");
+     const feature=data.features?.[0];
+     if(!feature?.geometry?.coordinates?.length)throw new Error("BRouter returned no route geometry");
+     const props=feature.properties||{};
+     route={coords:feature.geometry.coordinates.map(c=>[c[1],c[0]]),distance:Number(props["track-length"]||props["total-distance"]||0),time:Number(props["total-time"]||0)};
+     routeFound=true;
      break;
     }catch(err){lastError=err;}
    }
-   if(!feature)throw new Error("Bicycle routing is temporarily unavailable. Please try again later or use Open Google Maps for cycling directions. "+(lastError?.message||""));
-   route={coords:feature.geometry.coordinates.map(c=>[c[1],c[0]]),distance:feature.properties["track-length"]||feature.properties["total-distance"]||0,time:feature.properties["total-time"]||0};
+   if(!routeFound){
+    try{
+     const payload={locations:[{lat:origin[1],lon:origin[0]},{lat:dest.lat,lon:dest.lon}],costing:"bicycle",costing_options:{bicycle:{bicycle_type:"road"}},units:"kilometers",language:"en",directions_type:"instructions",shape_format:"polyline6"};
+     const url="https://valhalla1.openstreetmap.de/route?json="+encodeURIComponent(JSON.stringify(payload));
+     const response=await fetch(url,{headers:{"Accept":"application/json"}});
+     if(!response.ok)throw new Error("Valhalla HTTP "+response.status);
+     const data=await response.json(),trip=data.trip;
+     if(!trip?.legs?.length)throw new Error(data.error||"Valhalla returned no bicycle route");
+     const decodePolyline=(encoded,precision=6)=>{
+      let index=0,lat=0,lng=0,coords=[],factor=Math.pow(10,precision);
+      while(index<encoded.length){
+       let result=0,shift=0,b;
+       do{b=encoded.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20&&index<encoded.length);
+       lat+=(result&1)?~(result>>1):(result>>1);
+       result=0;shift=0;
+       do{b=encoded.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20&&index<encoded.length);
+       lng+=(result&1)?~(result>>1):(result>>1);
+       coords.push([lat/factor,lng/factor]);
+      }
+      return coords;
+     };
+     const legs=trip.legs;
+     const coords=legs.flatMap((leg,i)=>{const pts=decodePolyline(leg.shape||"",6);return i?pts.slice(1):pts;});
+     if(coords.length<2)throw new Error("Valhalla route geometry was empty");
+     const summary=trip.summary||{};
+     route={coords,distance:Number(summary.length||0)*1000,time:Number(summary.time||0)};
+     for(const leg of legs)for(const m of (leg.maneuvers||[])){if(m.instruction)instructions.push(m.instruction);}
+     routeFound=true;
+    }catch(err){lastError=err;}
+   }
+   if(!routeFound)throw new Error("Bicycle routing services are temporarily unavailable. Try again later, or use Open Google Maps for cycling directions. "+(lastError?.message||""));
   }else{
    const profile=mode==="walking"?"routed-foot":"routed-car";
    const url=`https://routing.openstreetmap.de/${profile}/route/v1/driving/${origin.join(",")};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
