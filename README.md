@@ -1,28 +1,21 @@
-# BikePark Metro Manila — Free-only build
+# BikePark Metro Manila — Free-only with Voice Assistance
 
-This version does not use Google Maps Platform APIs, a Google API key, or a billing account.
+This build adds browser-based spoken route instructions using the device's built-in SpeechSynthesis API. No paid voice API or Google Maps API key is required.
 
-## Free components
-- Leaflet map interface
-- OpenStreetMap map tiles (with visible attribution)
-- OpenStreetMap Nominatim + Photon address lookup fallbacks
-- BRouter + OpenStreetMap-based Valhalla bicycle routing fallbacks
-- OpenStreetMap-based routing service for walking/driving
-- Browser/device GPS for current location and follow-me mode
-- Full-screen route map and in-app route line
-- Live traffic button opens Google Maps traffic in a separate tab/app; traffic is not embedded in BikePark
+## Voice features
+- "Hear directions" button reads the route instructions aloud.
+- "Start" begins GPS tracking and starts spoken directions.
+- Press the voice button again to stop speech; press it again to replay.
+- Exiting full-screen navigation stops speech.
 
-## Deploy to GitHub Pages
-1. Extract this ZIP.
-2. Open your GitHub repository `bikepark-metro-manila`.
-3. Upload `index.html` and `README.md` to the repository root (replace existing files).
-4. Commit the changes to the `main` branch.
-5. Wait for GitHub Pages to publish, then refresh the website.
+## Existing free features
+- Leaflet + OpenStreetMap map
+- Device GPS and follow-me
+- OpenStreetMap-based bicycle, walking and driving route providers
+- Google Maps traffic opens externally (traffic is not embedded in the app)
 
-## Important limitations
-- The app uses public community routing/geocoding services. They are free to access but are best-effort, can be rate-limited, and are not guaranteed to be continuously available.
-- If a bicycle route provider is temporarily unavailable, retry later or use the external Google Maps directions link. No Google Maps API integration is used inside the app.
-- Google Maps live traffic opens externally. There is no free public Google traffic API for embedding the live traffic layer in this app.
-- GPS requires HTTPS and permission from the device/browser.
-- OpenStreetMap standard tiles have a usage policy. Do not bulk-download tiles or use the public tile server for offline maps; show the required © OpenStreetMap contributors attribution and respect caching rules.
-- Parking availability reports are local to the device in this prototype and are not shared between users.
+## Important voice limitation
+Voice currently reads the route's instruction list in sequence when started; it is not yet turn-triggered by GPS proximity, and it does not automatically reroute. Keep the map visible and follow road signs. Browser/device speech voices vary by phone and language settings. GPS requires HTTPS and permission.
+
+## Deploy
+Upload `index.html` and this `README.md` to the root of the `bikepark-metro-manila` GitHub repository, replacing the previous versions, then commit to `main`.
