@@ -416,13 +416,51 @@ window.openLiveTraffic=()=>{
  const url="https://www.google.com/maps/@?api=1&map_action=map&center="+lat+","+lng+"&zoom=14&layer=traffic";
  window.open(url,"_blank","noopener");
 };
+async function resolveRouteDestination(place){
+ const valid=o=>o&&Number.isFinite(Number(o.lat))&&Number.isFinite(Number(o.lon))&&Math.abs(Number(o.lat))<=90&&Math.abs(Number(o.lon))<=180;
+ const cached=geoCache[place.id];
+ if(valid(cached))return {lat:Number(cached.lat),lon:Number(cached.lon)};
+ if(cached)delete geoCache[place.id];
+ const queries=[
+  place.address,
+  [place.name,place.address,place.city,"Metro Manila","Philippines"].filter(Boolean).join(", "),
+  [place.name,place.city,"Metro Manila","Philippines"].filter(Boolean).join(", ")
+ ].filter(Boolean);
+ let lastError="No matching map location was returned";
+ for(const q of queries){
+  try{
+   const url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q="+encodeURIComponent(q);
+   const response=await fetch(url,{headers:{"Accept-Language":"en"}});
+   if(!response.ok)throw new Error("OpenStreetMap search HTTP "+response.status);
+   const data=await response.json();
+   if(data?.length&&valid({lat:data[0].lat,lon:data[0].lon})){
+    const point={lat:Number(data[0].lat),lon:Number(data[0].lon)};
+    geoCache[place.id]=point;localStorage.setItem(GEO,JSON.stringify(geoCache));return point;
+   }
+  }catch(err){lastError=err.message||lastError;}
+ }
+ // Photon is a separate OpenStreetMap-based geocoder and provides a fallback if Nominatim is rate-limited.
+ for(const q of queries.slice(0,2)){
+  try{
+   const url="https://photon.komoot.io/api/?limit=1&lang=en&q="+encodeURIComponent(q);
+   const response=await fetch(url);
+   if(!response.ok)throw new Error("Fallback map search HTTP "+response.status);
+   const data=await response.json(),coords=data?.features?.[0]?.geometry?.coordinates;
+   if(coords&&Number.isFinite(+coords[0])&&Number.isFinite(+coords[1])){
+    const point={lat:Number(coords[1]),lon:Number(coords[0])};
+    geoCache[place.id]=point;localStorage.setItem(GEO,JSON.stringify(geoCache));return point;
+   }
+  }catch(err){lastError=err.message||lastError;}
+ }
+ throw new Error("Could not find the map position for "+place.name+". Check its address or use “Choose starting point on map”. "+lastError);
+}
 window.routeFromCoordinates=async(id,origin)=>{
  const p=places.find(x=>x.id===id);if(!p)return;
  const status=$("routeStatus"),details=$("routeDetails");if(!status||!details)return;
  status.textContent="Calculating route…";details.innerHTML="";
  try{
-  let dest=geoCache[id];if(!dest){await geocodeOne(p);dest=geoCache[id];}
-  if(!dest)throw new Error("Destination location not found. Please confirm its address.");
+  status.textContent="Finding destination on the map…";
+  const dest=await resolveRouteDestination(p);
   const mode=$("routeMode").value;let route,instructions=[]; routeDestination={lat:dest.lat,lng:dest.lon};
   if(mode==="cycling"){
    // Primary: BRouter. Fallback: Valhalla bicycle routing.
@@ -498,7 +536,9 @@ window.routeFromCoordinates=async(id,origin)=>{
  }catch(e){
   const message=e.message||"Could not build route. Please try again.";
   status.textContent=message;
-  if(routeHud)routeHud.innerHTML="<strong>Could not calculate route</strong><div class='route-hud-meta'>"+esc(message)+"</div>";;$("modalBack").style.display="flex";}
+  if(routeHud){routeHud.remove();routeHud=null;}
+  status.textContent=message;
+  $("modalBack").style.display="flex";}
 };
 window.copyAddress=id=>{let p=places.find(x=>x.id===id);navigator.clipboard?.writeText(p.address);};
 window.report=id=>{let p=places.find(x=>x.id===id);$("modalTitle").textContent="Report parking availability";$("modalSub").textContent=p.name;$("modalBody").innerHTML=`<div class="hint">Please report what you see at the location. This update is saved on this device in this prototype.</div><label>Total capacity (optional)</label><input id="rCap" type="number" min="0" placeholder="e.g. 20" value="${p.capacity??""}"/><label>Available slots</label><input id="rAvail" type="number" min="0" placeholder="e.g. 4" value="${p.available??""}"/><label>Notes (optional)</label><textarea id="rNote" placeholder="e.g. rack near the main entrance"></textarea><div class="modal-actions"><button class="light" onclick="window.openDetails('${id}')">Cancel</button><button class="primary" onclick="window.saveReport('${id}')">Submit report</button></div>`;};
