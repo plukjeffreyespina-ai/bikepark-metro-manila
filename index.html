@@ -309,10 +309,18 @@ window.showRouteOptions=id=>{
  <div id="routeDetails"></div>`;
 };
 window.buildRoute=async id=>{
+ window.routeUsesLiveGPS=true;
  const status=$("routeStatus"),details=$("routeDetails");status.textContent="Getting your current location…";details.innerHTML="";
+ if(routeHud)routeHud.remove();
+ routeHud=document.createElement("div");routeHud.className="route-hud";
+ routeHud.innerHTML="<strong>Starting navigation…</strong><div class='route-hud-meta'>Getting your current location and calculating your route. Keep this page open.</div>";
+ document.body.appendChild(routeHud);
+ window.enterRouteFullscreen();
  if(!navigator.geolocation){status.textContent="GPS is unavailable here. Enter an address or choose a point on the map instead.";return;}
  navigator.geolocation.getCurrentPosition(pos=>window.routeFromCoordinates(id,[pos.coords.longitude,pos.coords.latitude]),err=>{
-  status.textContent=(err.code===1?"Location permission denied. ":"Could not get your location. ")+"You can still enter a starting address or choose a point directly on the map.";
+  const message=(err.code===1?"Location permission denied. ":"Could not get your location. ")+"Enable GPS/location permission and tap Use my location again.";
+  status.textContent=message;
+  if(routeHud)routeHud.innerHTML="<strong>Location unavailable</strong><div class='route-hud-meta'>"+esc(message)+"</div>";
  },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
 };
 window.routeFromAddress=async id=>{
@@ -464,7 +472,10 @@ window.routeFromCoordinates=async(id,origin)=>{
   $("modalBack").style.display="none";
   window.enterRouteFullscreen();
   if(window.routeUsesLiveGPS)window.startLiveTracking();
- }catch(e){status.textContent=e.message||"Could not build route. Please try again.";$("modalBack").style.display="flex";}
+ }catch(e){
+  const message=e.message||"Could not build route. Please try again.";
+  status.textContent=message;
+  if(routeHud)routeHud.innerHTML="<strong>Could not calculate route</strong><div class='route-hud-meta'>"+esc(message)+"</div>";;$("modalBack").style.display="flex";}
 };
 window.copyAddress=id=>{let p=places.find(x=>x.id===id);navigator.clipboard?.writeText(p.address);};
 window.report=id=>{let p=places.find(x=>x.id===id);$("modalTitle").textContent="Report parking availability";$("modalSub").textContent=p.name;$("modalBody").innerHTML=`<div class="hint">Please report what you see at the location. This update is saved on this device in this prototype.</div><label>Total capacity (optional)</label><input id="rCap" type="number" min="0" placeholder="e.g. 20" value="${p.capacity??""}"/><label>Available slots</label><input id="rAvail" type="number" min="0" placeholder="e.g. 4" value="${p.available??""}"/><label>Notes (optional)</label><textarea id="rNote" placeholder="e.g. rack near the main entrance"></textarea><div class="modal-actions"><button class="light" onclick="window.openDetails('${id}')">Cancel</button><button class="primary" onclick="window.saveReport('${id}')">Submit report</button></div>`;};
