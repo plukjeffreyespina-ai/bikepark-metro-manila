@@ -69,6 +69,23 @@ button:focus-visible{outline:3px solid rgba(28,161,111,.35);outline-offset:2px}
 @media(max-width:420px){h1{font-size:16px}.header-actions button{padding:8px 9px}.filters{gap:5px}.filter{padding:7px 9px;font-size:10px}.stats{gap:6px}.stat{padding:9px}}
 
 </style>
+<style>
+
+/* Full-screen route navigation */
+.map-panel.route-fullscreen{position:fixed!important;inset:0!important;z-index:5000!important;width:100vw!important;height:100dvh!important;min-height:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#e8efea}
+.map-panel.route-fullscreen #map{height:100dvh!important;min-height:100dvh!important;width:100vw!important}
+.map-panel.route-fullscreen .map-toolbar{top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;right:10px;align-items:flex-start;flex-wrap:wrap}
+.map-panel.route-fullscreen .map-label{max-width:42vw;white-space:normal}
+.route-nav-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.route-nav-actions button{border:0;border-radius:12px;padding:10px 12px;background:#fff;color:#123d2b;font-weight:800;box-shadow:0 4px 16px #102c1b30}
+.route-nav-actions .traffic-action{background:#fce9b7;color:#694600}
+.route-hud{position:fixed;z-index:5001;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);max-height:27vh;overflow:auto;background:#fffF;border:1px solid #dce9df;border-radius:16px;padding:12px 14px;box-shadow:0 8px 28px #102c1b30;backdrop-filter:blur(10px);font-size:13px;color:#183a2a}
+.route-hud strong{font-size:15px}.route-hud .route-hud-meta{color:#5a6e62;margin-top:4px}
+.route-hud ol{margin:7px 0 0;padding-left:20px;max-height:90px;overflow:auto}
+.route-fullscreen .leaflet-control-zoom{margin-top:76px!important}
+@media(max-width:600px){.route-nav-actions button{padding:9px 10px;font-size:11px}.route-hud{font-size:12px;max-height:25vh}.map-panel.route-fullscreen .map-label{max-width:38vw;font-size:10px}}
+
+</style>
 </head>
 <body>
 <header>
@@ -93,7 +110,15 @@ button:focus-visible{outline:3px solid rgba(28,161,111,.35);outline-offset:2px}
   <div class="notice">Availability is community-reported and may be out of date. Confirm with the facility before relying on a parking slot. Directory entries are not all physically verified; some shops need exact address confirmation.</div>
  </section>
  <section class="panel map-panel">
-  <div class="map-toolbar"><div class="map-label" id="mapStatus">Loading map…</div><button class="light" id="locateBtn">◎ My location</button></div>
+  <div class="map-toolbar">
+  <div class="map-label" id="mapStatus">Loading map…</div>
+  <div class="route-nav-actions">
+   <button class="light" id="locateBtn">◎ My location</button>
+   <button class="traffic-action" id="trafficBtn" style="display:none" onclick="window.openLiveTraffic()">🚦 Live traffic</button>
+   <button id="followBtn" style="display:none" onclick="window.toggleLiveFollow()">◎ Follow me</button>
+   <button id="exitRouteBtn" style="display:none" onclick="window.exitRouteFullscreen()">✕ Exit map</button>
+  </div>
+ </div>
   <div id="map"></div>
  </section>
 </main>
@@ -267,7 +292,7 @@ function openModal(p){$("modalTitle").textContent=p.name;$("modalSub").textConte
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="primary" onclick="window.showRouteOptions('${p.id}')">Show directions in map</button><a class="btn light" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name+", "+p.address)}">Open Google Maps ↗</a>${p.phone?`<a class="btn light" href="tel:${p.phone.replace(/[^+0-9]/g,"")}">Call</a>`:""}<button class="light" onclick="window.copyAddress('${p.id}')">Copy address</button></div>
  <div class="hint" style="margin-top:13px">Map location is geocoded from the address and may need confirmation. Call or message the business before travelling.</div>`;$("modalBack").style.display="flex";}
 
-let routePickMode=false, routeStartMarker=null;
+let routePickMode=false, routeStartMarker=null, liveLocationMarker=null, liveWatchId=null, liveFollow=true, lastLivePosition=null, routeHud=null;
 window.showRouteOptions=id=>{
  const p=places.find(x=>x.id===id); if(!p)return;
  const body=$("modalBody");let panel=$("routePanel");
@@ -300,11 +325,65 @@ window.enableMapStart=id=>{
  routePickMode=true;$("routeStatus").textContent="Tap your starting point anywhere on the map. The route will be calculated from that point.";
  $("modalBack").style.display="none";map.getContainer().style.cursor="crosshair";
 };
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.querySelector(".map-panel.route-fullscreen"))window.exitRouteFullscreen();});
 map.on("click",e=>{
  if(!routePickMode)return;routePickMode=false;map.getContainer().style.cursor="";
  const id=selected;if(!id){alert("Select a destination first, then choose a starting point.");return;}
  window.routeFromCoordinates(id,[e.latlng.lng,e.latlng.lat]);
 });
+window.enterRouteFullscreen=()=>{
+ const panel=document.querySelector(".map-panel");
+ if(!panel)return;
+ panel.classList.add("route-fullscreen");
+ $("trafficBtn").style.display="inline-flex";
+ $("followBtn").style.display="inline-flex";
+ $("exitRouteBtn").style.display="inline-flex";
+ $("mapStatus").textContent="Route navigation · GPS and map";
+ document.body.style.overflow="hidden";
+ setTimeout(()=>map.invalidateSize(true),120);
+};
+window.exitRouteFullscreen=()=>{
+ const panel=document.querySelector(".map-panel");
+ panel?.classList.remove("route-fullscreen");
+ $("trafficBtn").style.display="none";
+ $("followBtn").style.display="none";
+ $("exitRouteBtn").style.display="none";
+ if(routeHud){routeHud.remove();routeHud=null;}
+ document.body.style.overflow="";
+ stopLiveTracking();
+ setTimeout(()=>map.invalidateSize(true),120);
+};
+window.stopLiveTracking=()=>{
+ if(liveWatchId!==null){navigator.geolocation.clearWatch(liveWatchId);liveWatchId=null;}
+ liveFollow=false;
+};
+window.toggleLiveFollow=()=>{
+ liveFollow=!liveFollow;
+ $("followBtn").textContent=liveFollow?"◎ Following":"◎ Follow me";
+ if(liveFollow&&lastLivePosition)map.panTo([lastLivePosition.lat,lastLivePosition.lng]);
+};
+window.startLiveTracking=()=>{
+ if(!navigator.geolocation)return;
+ if(liveWatchId!==null)navigator.geolocation.clearWatch(liveWatchId);
+ liveWatchId=navigator.geolocation.watchPosition(pos=>{
+  const lat=pos.coords.latitude,lng=pos.coords.longitude;
+  lastLivePosition={lat,lng,accuracy:pos.coords.accuracy};
+  if(!liveLocationMarker){
+   liveLocationMarker=L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#1674d1",fillOpacity:1}).addTo(map).bindPopup("Your live location");
+  }else liveLocationMarker.setLatLng([lat,lng]);
+  if(liveFollow)map.panTo([lat,lng],{animate:true,duration:.5});
+  $("mapStatus").textContent="Live GPS · accuracy ±"+Math.round(pos.coords.accuracy)+" m";
+ },err=>{
+  $("mapStatus").textContent=err.code===1?"GPS permission denied":"GPS signal unavailable";
+ },{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+};
+window.openLiveTraffic=()=>{
+ const point=lastLivePosition||routeDestination;
+ if(!point){alert("Wait for your GPS location, or calculate a route first.");return;}
+ const lat=point.lat??point[1],lng=point.lng??point[0];
+ const url="https://www.google.com/maps/@?api=1&map_action=map&center="+lat+","+lng+"&zoom=14&layer=traffic";
+ window.open(url,"_blank","noopener");
+};
 window.routeFromCoordinates=async(id,origin)=>{
  const p=places.find(x=>x.id===id);if(!p)return;
  const status=$("routeStatus"),details=$("routeDetails");if(!status||!details)return;
@@ -312,7 +391,7 @@ window.routeFromCoordinates=async(id,origin)=>{
  try{
   let dest=geoCache[id];if(!dest){await geocodeOne(p);dest=geoCache[id];}
   if(!dest)throw new Error("Destination location not found. Please confirm its address.");
-  const mode=$("routeMode").value;let route,instructions=[];
+  const mode=$("routeMode").value;let route,instructions=[]; routeDestination={lat:dest.lat,lng:dest.lon};
   if(mode==="cycling"){
    // Primary: BRouter. Fallback: Valhalla bicycle routing.
    let routeFound=false, lastError=null;
@@ -378,7 +457,13 @@ window.routeFromCoordinates=async(id,origin)=>{
   map.fitBounds(L.latLngBounds(route.coords),{padding:[30,30]});
   status.innerHTML=`<span class="route-line">Route shown on map</span> · ${(route.distance/1000).toFixed(1)} km · about ${Math.max(1,Math.round(route.time/60))} min`;
   details.innerHTML=instructions.length?`<b>Turn-by-turn steps</b><ol class="route-steps">${instructions.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:`<div class="hint">Bicycle route shown on map. Follow the mapped path and local traffic signs. Detailed cycling turn instructions are not available from this route service.</div>`;
-  $("modalBack").style.display="flex";
+  if(routeHud)routeHud.remove();
+  routeHud=document.createElement("div");routeHud.className="route-hud";
+  routeHud.innerHTML=`<strong>${esc(p.name)}</strong><div class="route-hud-meta">${(route.distance/1000).toFixed(1)} km · approx. ${Math.max(1,Math.round(route.time/60))} min · ${mode==="cycling"?"Bicycle":mode==="walking"?"Walking":"Driving"}</div>`+(instructions.length?`<ol>${instructions.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:"<div class='route-hud-meta'>Follow the blue route and local road signs.</div>");
+  document.body.appendChild(routeHud);
+  $("modalBack").style.display="none";
+  window.enterRouteFullscreen();
+  if(window.routeUsesLiveGPS)window.startLiveTracking();
  }catch(e){status.textContent=e.message||"Could not build route. Please try again.";$("modalBack").style.display="flex";}
 };
 window.copyAddress=id=>{let p=places.find(x=>x.id===id);navigator.clipboard?.writeText(p.address);};

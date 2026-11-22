@@ -1,26 +1,15 @@
-# BikePark Metro Manila — Professional UI + Routing Fix
+# BikePark Metro Manila — Full-screen route navigation
 
-Updated static website package for GitHub Pages.
+## New navigation features
+- Route results automatically open in a full-screen map.
+- Live GPS location tracking using the browser's geolocation permission.
+- Follow-me control to keep the map centered on the rider.
+- Exit map control (also Escape on desktop).
+- Route summary and available turn instructions in a compact bottom panel.
+- Live traffic button opens Google Maps' traffic layer near the current GPS location or route destination.
 
-## Included
-- `index.html` — complete app
-- Professional responsive interface and Metro Manila directory
-- Map search, filters, location details, copy address, and community availability reports
-- In-app route display
-- Bicycle routing: BRouter primary service with Valhalla fallback
-- Walking and driving routing using the existing OpenStreetMap routing service
+## Important traffic limitation
+The app's Leaflet/OpenStreetMap map does not contain a live traffic feed. The Live traffic button opens Google Maps traffic separately. An embedded, in-app live traffic overlay requires a licensed traffic data provider/API key (for example Google Maps Platform, TomTom, or HERE) and the applicable billing/usage setup.
 
-## Update your GitHub Pages site
-1. Extract this ZIP.
-2. Open your `bikepark-metro-manila` repository.
-3. Select **Add file → Upload files**.
-4. Upload the new `index.html`, replacing the existing file.
-5. Commit the changes to the `main` branch.
-6. GitHub Pages will automatically rebuild the site.
-
-Keep `index.html` at the repository root (`/(root)`), not inside a subfolder.
-
-## Routing notes
-Routing uses third-party public services and requires internet connectivity. Public services may be rate-limited or temporarily unavailable, and OpenStreetMap coverage may be incomplete. Always verify routes and follow local traffic rules.
-
-User-added places and parking reports in this prototype are stored in the current browser's local storage; they are not synchronized between devices.
+## Deploy
+Replace the existing `index.html` at the root of your GitHub repository, commit to `main`, and wait for GitHub Pages to rebuild. Keep the file at repository root.
