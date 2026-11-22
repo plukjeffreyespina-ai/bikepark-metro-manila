@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="theme-color" content="#10231d"/>
+<title>BikePark Metro Manila</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{--ink:#17231f;--muted:#68766f;--line:#e5ebe7;--green:#147d52;--pale:#edf7f1;--bg:#f5f7f5;--amber:#b56b10;--red:#b43e3e}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--ink)}
+header{background:#10231d;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:42px;height:42px;border-radius:13px;background:#d8f4e4;color:#0d5d3b;display:grid;place-items:center;font-size:23px}
+h1{font-size:19px;margin:0;letter-spacing:-.3px}.sub{font-size:12px;color:#b7c9bf;margin-top:3px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:650;cursor:pointer;font-size:13px}
+.primary{background:var(--green);color:#fff}.ghost{background:#ffffff18;color:#fff;border:1px solid #ffffff33}.light{background:#eef3ef;color:#26372f}.danger{background:#fff0f0;color:#a32d2d}
+main{max-width:1440px;margin:auto;padding:16px;display:grid;grid-template-columns:minmax(300px,390px) 1fr;gap:16px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}
+.sidebar{display:flex;flex-direction:column;min-height:calc(100vh - 100px)}.side-head{padding:17px;border-bottom:1px solid var(--line)}
+h2{font-size:16px;margin:0 0 5px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
+.search{width:100%;padding:12px;border:1px solid #dce5df;border-radius:11px;margin:13px 0 10px;font-size:14px;outline-color:var(--green)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}.filter{background:#f1f4f2;color:#44534b;padding:8px 10px;border-radius:9px;font-size:12px}.filter.active{background:#dff2e7;color:#0b633d}
+.stats{display:flex;gap:8px;margin-top:12px}.stat{flex:1;background:#f6f8f6;border-radius:10px;padding:9px}.stat b{display:block;font-size:17px}.stat span{font-size:10px;color:var(--muted)}
+.results{overflow:auto;max-height:calc(100vh - 290px)}.item{padding:13px 16px;border-bottom:1px solid #eff2ef;cursor:pointer}.item:hover{background:#f8fbf9}.item-top{display:flex;justify-content:space-between;gap:10px}.item strong{font-size:13px}.item p{font-size:11px;color:var(--muted);margin:5px 0 7px;line-height:1.4}
+.tag{font-size:10px;font-weight:700;padding:4px 7px;border-radius:7px;white-space:nowrap;background:#edf5ef;color:#28734e}.tag.shop{background:#edf1ff;color:#475db1}.tag.unknown{background:#f0f1f1;color:#626d67}.tag.full{background:#fff0ef;color:#b43e3e}.tag.some{background:#fff5e6;color:#9b640d}
+.map-panel{position:relative;min-height:640px}.map-toolbar{position:absolute;z-index:500;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}.map-toolbar>*{pointer-events:auto}.map-label{background:#fff;border:1px solid var(--line);box-shadow:0 2px 10px #0001;padding:9px 12px;border-radius:10px;font-size:12px}
+#map{height:calc(100vh - 100px);min-height:640px;width:100%;background:#e8eee9}
+.notice{font-size:11px;color:#7a6650;background:#fff8ed;border:1px solid #f1e1c8;padding:10px 12px;line-height:1.45}
+.modal-back{position:fixed;inset:0;background:#101a16a8;z-index:2000;display:none;align-items:center;justify-content:center;padding:16px}.modal{background:#fff;border-radius:16px;width:min(560px,100%);max-height:90vh;overflow:auto;padding:20px;box-shadow:0 20px 60px #0003}.modal h3{margin:0 0 5px}.modal label{display:block;font-size:12px;font-weight:650;margin:12px 0 5px}.modal input,.modal select,.modal textarea{width:100%;padding:10px;border:1px solid #dce5df;border-radius:9px;font:inherit;font-size:13px}.modal textarea{min-height:68px}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.close{float:right;background:#f0f3f1;padding:6px 10px}
+.popup-title{font-weight:750;font-size:14px}.leaflet-popup-content{line-height:1.5}.leaflet-popup-content button{margin-top:6px}
+.empty{padding:24px;text-align:center;color:var(--muted);font-size:13px}
+footer{padding:12px 16px;color:#758078;font-size:10px;text-align:center}
+@media(max-width:850px){main{display:flex;flex-direction:column;padding:10px}.sidebar{min-height:auto}.results{max-height:330px}.map-panel{order:-1;min-height:55vh}#map{height:55vh;min-height:420px}.map-toolbar{top:8px;left:8px;right:8px}.map-label{font-size:10px;padding:7px 9px}header{padding:13px}.header-actions button{padding:8px 9px;font-size:11px}}
+.route-panel{margin-top:14px;padding:12px;border:1px solid #ddd;border-radius:12px;background:#f5f7f7}.route-panel select{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px}.route-meta{font-size:13px;margin:8px 0}.route-steps{font-size:13px;padding-left:20px;max-height:180px;overflow:auto}.route-line{color:#1674d1;font-weight:700}</style>
+<style>
+
+/* Professional BikePark Metro Manila UI */
+:root{--ink:#14251f;--muted:#687a72;--line:#e3ebe6;--green:#087b52;--green-dark:#075f40;--pale:#eaf6ef;--bg:#f3f7f4;--amber:#a86612;--red:#b43e3e;--shadow:0 12px 32px rgba(17,48,34,.08);--shadow-soft:0 5px 18px rgba(17,48,34,.06)}
+html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 8% 0%,#e9f5ee 0,transparent 32%),var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;letter-spacing:-.01em}
+header{position:sticky;top:0;z-index:1000;padding:15px clamp(16px,3vw,38px);background:rgba(13,39,29,.97);backdrop-filter:blur(14px);box-shadow:0 5px 24px rgba(5,28,18,.16);border-bottom:1px solid rgba(255,255,255,.09)}
+.brand{gap:13px}.logo{width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#e7fff0,#bfe9d0);box-shadow:inset 0 1px 0 #fff8;color:#075f40;font-size:25px}
+h1{font-size:clamp(17px,2vw,21px);font-weight:780;letter-spacing:-.65px}.sub{font-size:12px;color:#c4d8cc;letter-spacing:.01em}
+.header-actions{gap:9px}.header-actions button{padding:11px 15px;border-radius:11px;font-size:12px;transition:transform .18s,background .18s,box-shadow .18s}.header-actions button:hover{transform:translateY(-1px)}
+.primary{background:linear-gradient(135deg,#0a9662,#08734d);box-shadow:0 5px 13px rgba(5,112,72,.2);color:#fff}.primary:hover{background:linear-gradient(135deg,#0aa36b,#08734d)}
+.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#f4fff8}
+main{max-width:1600px;margin:0 auto;padding:22px clamp(12px,2vw,26px);grid-template-columns:minmax(330px,420px) minmax(0,1fr);gap:20px;align-items:stretch}
+.panel{background:#fff;border:1px solid rgba(219,231,223,.95);border-radius:20px;box-shadow:var(--shadow-soft)}.sidebar{min-height:calc(100vh - 124px)}
+.side-head{padding:22px 21px 17px;background:linear-gradient(180deg,#fff,#fbfdfb);border-bottom:1px solid var(--line)}
+h2{font-size:18px;font-weight:760;letter-spacing:-.45px;margin:0 0 6px}.hint{font-size:12px;color:var(--muted);line-height:1.6}
+.search{margin:16px 0 12px;padding:13px 14px 13px 42px;border:1px solid #dce8e0;border-radius:13px;background:#f9fcfa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23788c80' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E") no-repeat 14px center;font-size:13px;transition:border .2s,box-shadow .2s}
+.search:focus{border-color:#159568;box-shadow:0 0 0 4px rgba(21,149,104,.1);outline:none;background-color:#fff}
+.filters{gap:7px}.filter{padding:8px 11px;border-radius:999px;background:#f2f6f3;color:#52635a;font-size:11px;font-weight:700;border:1px solid #e8efea;transition:all .18s}.filter:hover{background:#e8f4ec;border-color:#cde6d5}.filter.active{background:#dff3e7;color:#08623f;border-color:#c8e8d4;box-shadow:inset 0 0 0 1px #d2ebda}
+.stats{gap:9px;margin-top:16px}.stat{background:linear-gradient(145deg,#f7faf8,#f0f6f2);border:1px solid #eaf0ec;border-radius:13px;padding:11px 12px}.stat b{font-size:20px;line-height:1.2;color:#123e2c;font-weight:800}.stat span{font-size:9px;letter-spacing:.08em;font-weight:800;color:#77877e}
+.results{padding:7px 9px 12px;max-height:calc(100vh - 315px);scrollbar-width:thin;scrollbar-color:#c9d9cf transparent}
+.item{margin:6px 0;padding:14px 13px;border:1px solid transparent;border-radius:13px;border-bottom:1px solid #edf2ee;transition:background .18s,border .18s,transform .18s,box-shadow .18s}.item:hover{background:#f8fcf9;border:1px solid #e1eee5;box-shadow:0 5px 14px rgba(20,75,45,.06);transform:translateY(-1px)}
+.item-top{align-items:center}.item strong{font-size:13px;font-weight:760;color:#1a3025;letter-spacing:-.2px}.item p{font-size:11px;color:#74847b;line-height:1.5;margin:6px 0 8px}
+.tag{font-size:9px;letter-spacing:.02em;font-weight:800;padding:5px 8px;border-radius:999px;background:#e8f5ed;color:#19714b}.tag.shop{background:#edf1ff;color:#4d5db0}.tag.unknown{background:#f1f3f2;color:#647169}.tag.full{background:#fff0ee;color:#b43e3e}.tag.some{background:#fff5e7;color:#98600d}
+.map-panel{overflow:hidden;min-height:680px;border-radius:20px;box-shadow:var(--shadow);border-color:#dfe9e2}#map{height:calc(100vh - 124px);min-height:680px;background:#e8efea}
+.map-toolbar{top:16px;left:16px;right:16px;align-items:flex-start}.map-label{border:1px solid rgba(218,230,222,.95);box-shadow:0 7px 22px rgba(20,48,32,.12);padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);font-size:11px;font-weight:700;color:#344a3d}
+.map-toolbar button{border-radius:12px;box-shadow:0 7px 22px rgba(20,48,32,.12);padding:11px 14px;font-size:12px;font-weight:750}.light{background:#fff;color:#17422e;border:1px solid #e0eae3}.light:hover{background:#eff8f2}
+.notice{margin:0;padding:13px 17px;background:#fffaf1;border:0;border-top:1px solid #f1e6d4;color:#80663e;font-size:10px;line-height:1.55}footer{padding:18px 12px;color:#819087;font-size:10px}
+.modal-back{background:rgba(9,27,19,.62);backdrop-filter:blur(5px);padding:18px}.modal{border:1px solid #e5eee8;border-radius:20px;padding:24px;box-shadow:0 28px 90px rgba(0,0,0,.25)}.modal h3{font-size:21px;letter-spacing:-.55px;color:#172c21}
+.modal label{font-size:11px;color:#40564a;font-weight:750;letter-spacing:.02em}.modal input,.modal select,.modal textarea{padding:12px 13px;border:1px solid #dce8e0;border-radius:11px;background:#fbfdfb;font-size:13px;outline:none}.modal input:focus,.modal select:focus,.modal textarea:focus{border-color:#159568;box-shadow:0 0 0 4px rgba(21,149,104,.09)}.close{border-radius:10px;background:#f0f5f1;color:#365143}
+.route-panel{margin-top:16px;padding:16px;border:1px solid #e0e9e3;border-radius:15px;background:linear-gradient(145deg,#f8fbf9,#f1f6f2)}.route-panel select{padding:12px;border:1px solid #d7e3da;border-radius:10px;background:#fff}.route-meta{color:#365143;font-size:12px;line-height:1.6}.route-steps{color:#4b6254;line-height:1.7}
+.empty{padding:34px 20px;color:#809087}.popup-title{color:#173b2a}.leaflet-popup-content-wrapper{border-radius:13px;box-shadow:0 10px 28px rgba(16,45,28,.15)}.leaflet-popup-content{margin:13px 15px;font-size:12px;color:#33483b}.leaflet-popup-content button{border-radius:9px;background:#087b52;color:#fff}
+button:focus-visible{outline:3px solid rgba(28,161,111,.35);outline-offset:2px}
+@media(max-width:850px){header{position:relative;padding:13px 14px}.brand{gap:9px}.logo{width:40px;height:40px;border-radius:13px}.sub{font-size:10px}.header-actions{gap:6px}.header-actions button{padding:9px 10px;font-size:10px;border-radius:9px}main{padding:10px;gap:12px}.sidebar{border-radius:17px}.side-head{padding:17px 15px 14px}.results{max-height:310px}.map-panel{min-height:54vh;border-radius:17px}#map{height:54vh;min-height:390px}.map-toolbar{top:9px;left:9px;right:9px}.map-label{font-size:10px}.modal{padding:19px;border-radius:17px}}
+@media(max-width:420px){h1{font-size:16px}.header-actions button{padding:8px 9px}.filters{gap:5px}.filter{padding:7px 9px;font-size:10px}.stats{gap:6px}.stat{padding:9px}}
+
+</style>
+</head>
+<body>
+<header>
+ <div class="brand"><div class="logo">🚲</div><div><h1>BikePark Metro Manila</h1><div class="sub">Find bike parking, shops, repairs and rentals</div></div></div>
+ <div class="header-actions"><button class="ghost" id="addBtn">＋ Add a place</button><button class="primary" id="adminBtn">Manage data</button></div>
+</header>
+<main>
+ <section class="panel sidebar">
+  <div class="side-head">
+   <h2>Explore cycling locations</h2><div class="hint">Search by place, street or city. Select a pin or listing for details.</div>
+   <input id="search" class="search" placeholder="Search e.g. Quiapo, Makati, bike repair…" autocomplete="off"/>
+   <div class="filters">
+    <button class="filter active" data-filter="all">All places</button>
+    <button class="filter" data-filter="parking">🅿 Parking</button>
+    <button class="filter" data-filter="shop">🚲 Bike shops</button>
+    <button class="filter" data-filter="repair">🔧 Repair</button>
+    <button class="filter" data-filter="rental">🔁 Rental</button>
+   </div>
+   <div class="stats"><div class="stat"><b id="countAll">0</b><span>PLACES</span></div><div class="stat"><b id="countParking">0</b><span>PARKING</span></div><div class="stat"><b id="countShops">0</b><span>BIKE SHOPS</span></div></div>
+  </div>
+  <div class="results" id="results"></div>
+  <div class="notice">Availability is community-reported and may be out of date. Confirm with the facility before relying on a parking slot. Directory entries are not all physically verified; some shops need exact address confirmation.</div>
+ </section>
+ <section class="panel map-panel">
+  <div class="map-toolbar"><div class="map-label" id="mapStatus">Loading map…</div><button class="light" id="locateBtn">◎ My location</button></div>
+  <div id="map"></div>
+ </section>
+</main>
+<footer>Prototype MVP · Map tiles © OpenStreetMap contributors · Location lookup © OpenStreetMap Nominatim · Community reports are stored on this device only.</footer>
+
+<div class="modal-back" id="modalBack"><div class="modal">
+ <button class="close" id="closeModal">✕</button><h3 id="modalTitle">Place details</h3><div class="hint" id="modalSub"></div><div id="modalBody"></div>
+</div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const seed = [
+ // Parking listings - addresses and indicative fees sourced from public directory listings; availability unknown.
+ {id:"p1",type:"parking",name:"Glorietta Mall Parking",city:"Makati",address:"Glorietta Mall, Ayala Center, Makati City, Metro Manila, Philippines",fee:"₱50 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p2",type:"parking",name:"Greenbelt 5 Parking",city:"Makati",address:"Greenbelt 5, Legazpi Street, Ayala Center, Makati City, Metro Manila, Philippines",fee:"₱60 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p3",type:"parking",name:"Shangri-La Plaza Main Wing Parking",city:"Mandaluyong",address:"Shangri-La Plaza, EDSA corner Shaw Boulevard, Mandaluyong City, Metro Manila, Philippines",fee:"₱80 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p4",type:"parking",name:"SM Megamall Building B Parking",city:"Mandaluyong",address:"SM Megamall Building B, Doña Julia Vargas Avenue, Mandaluyong City, Metro Manila, Philippines",fee:"₱60 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p5",type:"parking",name:"Quirino Grandstand Parking Area",city:"Manila",address:"Quirino Grandstand, Rizal Park, Manila, Metro Manila, Philippines",fee:"Confirm on site",capacity:null,available:null,verified:false},
+ {id:"p6",type:"parking",name:"UPark - ADB Open Parking",city:"Mandaluyong",address:"Asian Development Bank Avenue, Ortigas Center, Mandaluyong City, Metro Manila, Philippines",fee:"₱75 / 2 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p7",type:"parking",name:"Ayala Malls Manila Bay Parking",city:"Parañaque",address:"Ayala Malls Manila Bay, Diosdado Macapagal Boulevard, Parañaque City, Metro Manila, Philippines",fee:"₱50 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p8",type:"parking",name:"MAAX Multilevel Car Park",city:"Pasay",address:"MAAX Building, Coral Way, Mall of Asia Complex, Pasay City, Metro Manila, Philippines",fee:"₱50 flat (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p9",type:"parking",name:"The Medical City Medical Arts Tower",city:"Pasig",address:"The Medical City, Ortigas Avenue, Pasig City, Metro Manila, Philippines",fee:"₱50 / 2 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p10",type:"parking",name:"SM City Manila Parking",city:"Manila",address:"SM City Manila, Natividad Almeda-Lopez corner A. Villegas Street, Manila, Philippines",fee:"₱50 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p11",type:"parking",name:"UST Multilevel Car Park",city:"Manila",address:"University of Santo Tomas, España Boulevard, Sampaloc, Manila, Philippines",fee:"Confirm on site",capacity:null,available:null,verified:false},
+ {id:"p12",type:"parking",name:"SM City North EDSA Parking",city:"Quezon City",address:"SM City North EDSA, North Avenue, Quezon City, Metro Manila, Philippines",fee:"₱60 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p13",type:"parking",name:"UP Town Center Parking",city:"Quezon City",address:"UP Town Center, Katipunan Avenue, Quezon City, Metro Manila, Philippines",fee:"₱50 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p14",type:"parking",name:"Las Piñas City Hall Parking",city:"Las Piñas",address:"Las Piñas City Hall, Alabang-Zapote Road, Las Piñas City, Metro Manila, Philippines",fee:"Free (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p15",type:"parking",name:"SM Southmall Parking",city:"Las Piñas",address:"SM Southmall, Alabang-Zapote Road, Las Piñas City, Metro Manila, Philippines",fee:"₱40 flat (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p16",type:"parking",name:"Festival Supermall Bridgeway Parking",city:"Muntinlupa",address:"Festival Supermall, Filinvest City, Alabang, Muntinlupa City, Metro Manila, Philippines",fee:"₱50 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p17",type:"parking",name:"Marikina City Hall Parking",city:"Marikina",address:"Marikina City Hall, Shoe Avenue, Marikina City, Metro Manila, Philippines",fee:"Confirm on site",capacity:null,available:null,verified:false},
+ {id:"p18",type:"parking",name:"Pateros Municipal Hall Parking",city:"Pateros",address:"Pateros Municipal Hall, G. de Borja Street, Pateros, Metro Manila, Philippines",fee:"Free (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p19",type:"parking",name:"North Mall Monumento Parking",city:"Caloocan",address:"North Mall, Rizal Avenue Extension, Grace Park East, Caloocan City, Metro Manila, Philippines",fee:"₱50 flat (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p20",type:"parking",name:"Robinsons Town Mall Malabon Parking",city:"Malabon",address:"Robinsons Town Mall Malabon, Governor Pascual Avenue, Malabon City, Metro Manila, Philippines",fee:"₱30 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ {id:"p21",type:"parking",name:"Molito Lifestyle Center Parking",city:"Muntinlupa",address:"Molito Lifestyle Center, Madrigal Avenue corner Commerce Avenue, Alabang, Muntinlupa City, Philippines",fee:"₱80 / 3 hrs (directory listing)",capacity:null,available:null,verified:false},
+ // Bike shop / repair / rental listings
+ {id:"s1",type:"shop",services:["retail","repair"],name:"Built Cycles - Quezon City",city:"Quezon City",address:"74 Kalayaan Avenue, Diliman, Quezon City, Metro Manila, Philippines",phone:"+63 2 8709 8392",verified:true},
+ {id:"s2",type:"shop",services:["retail","repair"],name:"SarapMagBike Shop",city:"Quezon City",address:"44 Mindanao Avenue Extension, Tandang Sora, Quezon City, Metro Manila, Philippines",phone:"+63 968 356 8251",verified:true},
+ {id:"s3",type:"shop",services:["retail","repair"],name:"Roosevelt Bicycle Center",city:"Quezon City",address:"117 Fernando Poe Jr. Avenue, Frisco, Quezon City, Metro Manila, Philippines",phone:"+63 2 8654 6437",verified:true},
+ {id:"s4",type:"shop",services:["ebike"],name:"Exion Cycles",city:"Quezon City",address:"96 Granada Street, Quezon City, Metro Manila, Philippines",phone:"+63 927 771 8800",verified:true},
+ {id:"s5",type:"shop",services:["retail","repair"],name:"2Wheel Nation Cycling",city:"Quezon City",address:"Congressional Avenue, Quezon City, Metro Manila, Philippines",phone:"+63 2 8282 7468",verified:true},
+ {id:"s6",type:"shop",services:["retail","repair"],name:"SIXNINE Cycles",city:"Quezon City",address:"189 Katipunan Avenue, Project 4, Quezon City, Metro Manila, Philippines",verified:true},
+ {id:"s7",type:"shop",services:["retail","repair"],name:"Dave Bikes",city:"Quezon City",address:"27 Durian Street, Project 2, Quezon City, Metro Manila, Philippines",phone:"+63 915 283 0555",verified:true},
+ {id:"s8",type:"shop",services:["retail","repair"],name:"Bikeary Bicycle Lifestyle",city:"Quezon City",address:"104 Mother Ignacia Avenue, Diliman, Quezon City, Metro Manila, Philippines",phone:"+63 998 558 0423",verified:true},
+ {id:"s9",type:"shop",services:["retail"],name:"King's Bicycle Store",city:"Manila",address:"620-622 Quezon Boulevard, Quiapo, Manila, Philippines",phone:"+63 2 8734 0052",verified:true},
+ {id:"s10",type:"shop",services:["retail"],name:"Decimal Cycle Supply",city:"Manila",address:"548 Quezon Boulevard, Quiapo, Manila, Philippines",phone:"+63 2 8734 0007",verified:true},
+ {id:"s11",type:"shop",services:["retail","repair"],name:"Pedal Lane PH",city:"Quezon City",address:"91 New York Avenue, Quezon City, Metro Manila, Philippines",phone:"+63 916 508 4249",verified:true},
+ {id:"s12",type:"shop",services:["retail","repair"],name:"Basikleta",city:"Quezon City",address:"2 Scout Limbaga corner Mother Ignacia Street, Diliman, Quezon City, Metro Manila, Philippines",phone:"+63 2 8376 4897",verified:true},
+ {id:"s13",type:"shop",services:["retail","repair"],name:"Philip Bicycle Shop",city:"Manila",address:"1821 Paz Mendoza Guazon Street, Paco, Manila, Philippines",phone:"+63 949 177 1777",verified:true},
+ {id:"s14",type:"shop",services:["retail","repair","rental"],name:"BPM Studio",city:"Quezon City",address:"108 BML Building, 712 Tandang Sora Avenue corner Peace Valley, Quezon City, Metro Manila, Philippines",phone:"+63 939 632 3702",verified:true},
+ {id:"s15",type:"shop",services:["rental","tour"],name:"Bambike Quezon City",city:"Quezon City",address:"Quezon Heritage House, Quezon Memorial Circle, Diliman, Quezon City, Metro Manila, Philippines",phone:"+63 917 577 9474",verified:true},
+ {id:"s16",type:"shop",services:["retail","repair","rental"],name:"Bambike Ecotours Intramuros",city:"Manila",address:"Plaza San Luis Complex, Real Street corner General Luna Street, Intramuros, Manila, Philippines",phone:"+63 977 781 5322",verified:true},
+ {id:"s17",type:"shop",services:["retail"],name:"Rides Bicycle Shop",city:"Manila",address:"564 Quezon Boulevard, Quiapo, Manila, Philippines",phone:"+63 999 411 9721",verified:true},
+ {id:"s18",type:"shop",services:["retail"],name:"MK Bike Station - Caloocan",city:"Caloocan",address:"1366-1368 Rizal Avenue Extension, Grace Park, Caloocan City, Metro Manila, Philippines",phone:"+63 906 416 2986",verified:true},
+ {id:"s19",type:"shop",services:["retail"],name:"Equinox Bicycle Center",city:"Makati",address:"4319 Kalayaan Avenue, Barangay Sta. Cruz, Makati City, Metro Manila, Philippines",phone:"+63 915 717 0372",verified:true},
+ {id:"s20",type:"shop",services:["retail"],name:"Tryon Bike Shop",city:"Makati",address:"477 J.P. Rizal Street, Makati City, Metro Manila, Philippines",phone:"+63 917 812 5412",verified:true},
+ {id:"s21",type:"shop",services:["retail"],name:"Storck Bicycle Philippines",city:"Mandaluyong",address:"Unit 31, The Portal, Greenfield District, Mandaluyong City, Metro Manila, Philippines",phone:"+63 2 8650 6727",verified:true},
+{"id":"p100","type":"parking","name":"Salcedo Covered Car Park","city":"Makati","address":"148 Valero Street, Salcedo Village, Makati City, Metro Manila, Philippines","fee":"₱50 / 2 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p101","type":"parking","name":"Ayala North Exchange Basement Parking","city":"Makati","address":"Ayala North Exchange, 103 Salcedo Street, Legazpi Village, Makati City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p102","type":"parking","name":"SM Aura Premier Parking 1","city":"Taguig","address":"SM Aura Premier, 26th Street corner McKinley Parkway, Taguig City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p103","type":"parking","name":"Market Market Multi-Level Parking","city":"Taguig","address":"Market! Market!, 1634 Carlos P. Garcia Avenue, Taguig City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p104","type":"parking","name":"Blue Bay Walk West Open Parking","city":"Pasay","address":"Blue Bay Walk, 107 Diosdado Macapagal Boulevard, Pasay City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p105","type":"parking","name":"Aseana Square Open Parking","city":"Parañaque","address":"Aseana Square, Diosdado Macapagal Boulevard, Parañaque City, Metro Manila, Philippines","fee":"₱60 / 2 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p106","type":"parking","name":"IKEA MOA Square Parking","city":"Pasay","address":"IKEA, Mall of Asia Complex, Pasay City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p107","type":"parking","name":"Robinsons Place Manila Bicycle Parking","city":"Manila","address":"Robinsons Place Manila, Sta. Monica Street, Ermita, Manila, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p108","type":"parking","name":"S Maison Parking","city":"Pasay","address":"S Maison, Seaside Boulevard corner Coral Way, Pasay City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p109","type":"parking","name":"Greenhills Parking 6-Promenade Steel Carpark","city":"San Juan","address":"Greenhills Shopping Center, Annapolis Street corner Missouri Street, San Juan City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p110","type":"parking","name":"Greenhills VMall Open Parking","city":"San Juan","address":"V-Mall, Greenhills Shopping Center, San Juan City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p111","type":"parking","name":"Farmers Garden Parking","city":"Quezon City","address":"Farmers Market, General Araneta Avenue, Cubao, Quezon City, Metro Manila, Philippines","fee":"₱50 / 2 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p112","type":"parking","name":"Parking Garage South","city":"Quezon City","address":"General McArthur Avenue, Quezon City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p113","type":"parking","name":"SM City San Lazaro Mall Parking","city":"Manila","address":"SM City San Lazaro, Felix Huertas corner A.H. Lacson Avenue, Santa Cruz, Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p114","type":"parking","name":"Parañaque City Hall Parking","city":"Parañaque","address":"Parañaque City Hall, San Martin de Porres, Parañaque City, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p115","type":"parking","name":"Eton Centris Steel Parking","city":"Quezon City","address":"Eton Centris, 831-A EDSA, Quezon City, Metro Manila, Philippines","fee":"₱50 / 6 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p116","type":"parking","name":"SM City Marikina Parking","city":"Marikina","address":"SM City Marikina, Marcos Highway, Marikina City, Metro Manila, Philippines","fee":"₱40 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p117","type":"parking","name":"SM City BF Parañaque Multi-Level Parking","city":"Parañaque","address":"SM City BF Parañaque, Dr. A. Santos Avenue corner President Avenue, Parañaque City, Metro Manila, Philippines","fee":"₱40 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p118","type":"parking","name":"SM North EDSA The Annex Parking","city":"Quezon City","address":"SM North EDSA The Annex, Bago Bantay, Quezon City, Metro Manila, Philippines","fee":"₱50 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p119","type":"parking","name":"Marikina Public Market Parking","city":"Marikina","address":"Marikina Public Market, Sta. Elena, Marikina City, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p120","type":"parking","name":"UP Ayala Technohub Parking","city":"Quezon City","address":"UP Ayala Technohub, 1101 Commonwealth Avenue, Quezon City, Metro Manila, Philippines","fee":"₱50 / 4 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p121","type":"parking","name":"Ayala Malls Cloverleaf Parking","city":"Quezon City","address":"Ayala Malls Cloverleaf, A. Bonifacio Avenue, Quezon City, Metro Manila, Philippines","fee":"₱50 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p122","type":"parking","name":"UP Film Center Open Parking","city":"Quezon City","address":"UP Film Center, Osmeña Avenue, University of the Philippines Diliman, Quezon City, Philippines","fee":"Confirm on site (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p123","type":"parking","name":"SM Grand Central Parking","city":"Caloocan","address":"SM City Grand Central, Rizal Avenue Extension, Grace Park East, Caloocan City, Metro Manila, Philippines","fee":"₱50 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p124","type":"parking","name":"Araneta Square Mall Parking","city":"Caloocan","address":"Araneta Square Mall, Rizal Avenue Extension, Monumento, Caloocan City, Metro Manila, Philippines","fee":"₱55 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p125","type":"parking","name":"Victory Mall Pay Parking","city":"Caloocan","address":"Victory Mall, 713 Rizal Avenue Extension, Caloocan City, Metro Manila, Philippines","fee":"₱50 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p126","type":"parking","name":"Vista Mall Parking Building","city":"Las Piñas","address":"Vista Mall Las Piñas, 7 Philam Life Avenue, Las Piñas City, Metro Manila, Philippines","fee":"₱25 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p127","type":"parking","name":"Puregold Talon Tres Parking","city":"Las Piñas","address":"Puregold Talon Tres, Alabang-Zapote Road, Las Piñas City, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p128","type":"parking","name":"Fisher Mall Malabon Basement Parking","city":"Malabon","address":"Fisher Mall Malabon, C-4 Dagat-Dagatan Avenue, Malabon City, Metro Manila, Philippines","fee":"₱40 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p129","type":"parking","name":"Ayala Malls Marikina Parking","city":"Marikina","address":"Ayala Malls Marikina, Liwasang Kalayaan, Marikina City, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p130","type":"parking","name":"Madrigal Business Park Parking Lot","city":"Muntinlupa","address":"Madrigal Business Park, Acacia Avenue, Alabang, Muntinlupa City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p131","type":"parking","name":"Aeon Complex Basement Parking","city":"Malabon","address":"Aeon Complex, 114 Governor Pascual Avenue, Malabon City, Metro Manila, Philippines","fee":"Confirm on site (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p132","type":"parking","name":"Westgate Center Parking","city":"Muntinlupa","address":"Westgate Center, Alabang, Muntinlupa City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p133","type":"parking","name":"Insular Life Parking and Activity Center","city":"Muntinlupa","address":"Insular Life Drive, Filinvest City, Alabang, Muntinlupa City, Metro Manila, Philippines","fee":"₱40 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p134","type":"parking","name":"One Mall Valenzuela Basement Parking","city":"Valenzuela","address":"One Mall Valenzuela, General T. de Leon, Valenzuela City, Metro Manila, Philippines","fee":"Free (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p135","type":"parking","name":"SM Valenzuela Parking","city":"Valenzuela","address":"SM City Valenzuela, MacArthur Highway, Valenzuela City, Metro Manila, Philippines","fee":"₱50 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p136","type":"parking","name":"Malabon Sports Complex Parking","city":"Malabon","address":"Malabon Sports Complex, Cherry Gail Street, Malabon City, Metro Manila, Philippines","fee":"Confirm on site (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p137","type":"parking","name":"SM City Fairview Covered Parking","city":"Quezon City","address":"SM City Fairview, Quirino Highway corner Regalado Highway, Quezon City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p138","type":"parking","name":"SM City Fairview Open Parking A","city":"Quezon City","address":"SM City Fairview Open Parking A, Quirino Highway corner Regalado Avenue, Quezon City, Metro Manila, Philippines","fee":"₱30 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p139","type":"parking","name":"SM City Fairview Parking","city":"Quezon City","address":"SM City Fairview, Quirino Highway corner Regalado Avenue, Quezon City, Metro Manila, Philippines","fee":"₱50 / 3 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p140","type":"parking","name":"VRP Medical Center Carpark Building","city":"Mandaluyong","address":"VRP Medical Center, 548 Sierra Madre Street, Mandaluyong City, Metro Manila, Philippines","fee":"₱70 / 2 hrs (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"p141","type":"parking","name":"Zitan Basement Pay Parking","city":"Mandaluyong","address":"Zitan, 730 Shaw Boulevard corner Sto. Cristo Street, Mandaluyong City, Metro Manila, Philippines","fee":"₱600 flat (public directory; confirm on arrival)","capacity":null,"available":null,"verified":false,"source":"ParkinganPH"},
+{"id":"s200","type":"shop","name":"All Terra Cyclery","city":"Pasig","address":"3A CW Home Depot, Julia Vargas Avenue corner Meralco Avenue, Ugong Norte, Pasig City, Metro Manila, Philippines","phone":"+63 2 7909 7264","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s201","type":"shop","name":"Bike Town Cyclery","city":"Makati","address":"2240 Chino Roces Avenue, Makati City, Metro Manila, Philippines","phone":"+63 918 908 8523","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s202","type":"shop","name":"Dan's Bike Shop - Makati","city":"Makati","address":"W13A La Fuerza Plaza Compound, 2241 Don Chino Roces Avenue, Makati City, Metro Manila, Philippines","phone":"+63 917 566 8730","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s203","type":"shop","name":"Dan's Bike Shop - Parqal","city":"Parañaque","address":"Ground Floor, Sawali Building, Parqal, Diosdado Macapagal Boulevard, Parañaque City, Metro Manila, Philippines","phone":"+63 917 708 6991","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s204","type":"shop","name":"Dan's Bike Shop - SM North EDSA","city":"Quezon City","address":"3rd Floor, The Block, SM City North EDSA, Quezon City, Metro Manila, Philippines","phone":"+63 994 483 1251","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s205","type":"shop","name":"Dan's Bike Shop - SM Aura","city":"Taguig","address":"4th Floor, SM Aura, 26th Street corner McKinley Parkway, Taguig City, Metro Manila, Philippines","phone":"+63 915 995 7777","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s206","type":"shop","name":"Dan's Bike Shop - SM Megamall","city":"Mandaluyong","address":"Upper Ground, Building B, SM Megamall, EDSA corner J. Vargas Avenue, Mandaluyong City, Metro Manila, Philippines","phone":"+63 917 150 2378","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s207","type":"shop","name":"Dan's Bike Shop - Alabang Town Center","city":"Muntinlupa","address":"Ground Floor, Town Plaza, Alabang Town Center, Muntinlupa City, Metro Manila, Philippines","phone":"+63 991 189 7243","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s208","type":"shop","name":"The Brick Multisport Store","city":"Taguig","address":"Unit 1 Woodridge Apartments, Upper McKinley Road, McKinley Hill, Taguig City, Metro Manila, Philippines","phone":"+63 917 855 5262","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s209","type":"shop","name":"Bicycology Shop","city":"Las Piñas","address":"Seaside Paluto, Lot 1-5 Daang Hari Road, Las Piñas City, Metro Manila, Philippines","phone":"+63 999 993 5135","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s212","type":"shop","name":"Richbike Bicycle Shop","city":"Muntinlupa","address":"#64 National Road, Tunasan, Muntinlupa City, Metro Manila, Philippines","phone":"+63 995 468 9604","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s213","type":"shop","name":"Gopedal","city":"Pasig","address":"Arcovia City, Pasig City, Metro Manila, Philippines","phone":"+63 995 475 2817","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s214","type":"shop","name":"Tambay Cycling Hub","city":"Pasig","address":"93 East Capitol Drive, Kapitolyo, Pasig City, Metro Manila, Philippines","phone":"+63 945 237 1060","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s215","type":"shop","name":"Madie's Bike Shop","city":"Quezon City","address":"1 Pugad Lawin, Congressional Avenue, Muñoz, Quezon City, Metro Manila, Philippines","phone":"+63 977 248 7229","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s217","type":"shop","name":"MK Bike Station - Manila","city":"Manila","address":"#523 Muelle de Binondo Street, Binondo, Manila, Metro Manila, Philippines","phone":"+63 906 416 2986","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s218","type":"shop","name":"Ryukalel Enterprises","city":"Makati","address":"1120 MMM Building, Antipolo Street, Poblacion, Makati City, Metro Manila, Philippines","phone":"+63 905 532 2111","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s219","type":"shop","name":"Bicycle Couturier / Bike Statement PH","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s220","type":"shop","name":"Bikezilla","city":"Pasig","address":"Sapphire Road, Ortigas Center, Pasig City, Metro Manila, Philippines","phone":"+63 2 8696 7649","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s221","type":"shop","name":"CycleSport BGC","city":"Taguig","address":"Bonifacio Global City, Taguig City, Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s222","type":"shop","name":"Crankhouse Pasig","city":"Pasig","address":"Pasig City, Metro Manila, Philippines","phone":"+63 917 726 7585","services":["retail","repair"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s223","type":"shop","name":"CycleHouse","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"+63 906 247 2201","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s224","type":"shop","name":"BMX Cycle Center","city":"Manila","address":"Manila, Metro Manila, Philippines","phone":"+63 2 8364 9516","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s225","type":"shop","name":"Ciclo","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s226","type":"shop","name":"Colnago Manila","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s227","type":"shop","name":"Corsa Cycles","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s228","type":"shop","name":"Attack Bike Shop","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"+63 929 413 6067","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s229","type":"shop","name":"AzioneSports","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"+63 2 3437 5255","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s230","type":"shop","name":"Bike 101 Enterprises","city":"Quezon City","address":"Quezon City, Metro Manila, Philippines","phone":"+63 2 8646 4811","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s231","type":"shop","name":"Bike and Roll","city":"Quezon City","address":"Quezon City, Metro Manila, Philippines","phone":"+63 2 8363 7672","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s232","type":"shop","name":"Bike Shop sa Kalentong","city":"Mandaluyong","address":"Kalentong, Mandaluyong City, Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s233","type":"shop","name":"Canoy Bikes","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"+63 999 681 6212","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s234","type":"shop","name":"Cathy Bicycle Shop","city":"Manila","address":"Manila, Metro Manila, Philippines","phone":"+63 2 8330 5842","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s235","type":"shop","name":"Celeste Cycles PH","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s236","type":"shop","name":"Cycle Express","city":"Metro Manila","address":"Metro Manila, Philippines","phone":"+63 916 258 7559","services":["retail"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s237","type":"shop","name":"Bisitleta Manila","city":"Manila","address":"560 Quezon Boulevard, Quiapo, Manila, Metro Manila, Philippines","phone":"+63 2 7362 579","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s238","type":"shop","name":"Unison Industrial Trading","city":"Manila","address":"581 Quintin Paredes Street, Binondo, Manila, Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s239","type":"shop","name":"Gravity Workz Bikeshop","city":"Makati","address":"7427 Yakal Street, San Antonio Village, Makati City, Metro Manila, Philippines","phone":"+63 920 428 2656","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s240","type":"shop","name":"Endless Bike Shop","city":"Makati","address":"4977 Antonio Arnaiz Avenue, Makati City, Metro Manila, Philippines","phone":"+63 2 8874 624","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s241","type":"shop","name":"MT Pro Bikes","city":"Makati","address":"UPRC 1, 2230 Pasong Tamo Avenue, Makati City, Metro Manila, Philippines","phone":"+63 2 8816 6337","services":["retail","repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s242","type":"shop","name":"The Tri Temple","city":"Makati","address":"2135 Chino Roces Avenue, Legazpi Village, Makati City, Metro Manila, Philippines","phone":"+63 928 657 8266","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s243","type":"shop","name":"Enso's Bikeshop","city":"Marikina","address":"58 J.P. Rizal Street, Calumpang, Marikina City, Metro Manila, Philippines","phone":"","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s244","type":"shop","name":"John Wilkie Bike Shop - Marikina 1","city":"Marikina","address":"621 J.P. Rizal Street, Marikina City, Metro Manila, Philippines","phone":"+63 2 394 6812","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s245","type":"shop","name":"John Wilkie Bike Shop - Marikina 2","city":"Marikina","address":"278 J.P. Rizal Street, Marikina City, Metro Manila, Philippines","phone":"+63 2 646 8547","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s246","type":"shop","name":"Altas Bicycle Store","city":"Pasay","address":"Sapa Building, Luna Street, Pasay City, Metro Manila, Philippines","phone":"+63 2 831 1941","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s247","type":"shop","name":"Cristy's Bike Shop","city":"Pasay","address":"55 Seacrest Commercial Building, Senator Gil Puyat Avenue, Pasay City, Metro Manila, Philippines","phone":"+63 2 833 6196","services":["retail"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s248","type":"shop","name":"Dan's Bike Shop - FOX Service Center","city":"Makati","address":"W13A La Fuerza Plaza Compound, 2241 Don Chino Roces Avenue, Makati City, Metro Manila, Philippines","phone":"+63 2 8553 4919","services":["repair"],"verified":false,"addressPending":false,"source":"public business directory"},
+{"id":"s249","type":"shop","name":"Onthego E-bike Rental - Kamuning","city":"Quezon City","address":"Kamuning, Quezon City, Metro Manila, Philippines","phone":"","services":["rental"],"verified":false,"addressPending":true,"source":"public business directory"},
+{"id":"s250","type":"shop","name":"Moovr Bike Station - Anda Hub","city":"Manila","address":"Anda Street, Intramuros, Manila, Metro Manila, Philippines","phone":"","services":["rental"],"verified":false,"addressPending":false,"source":"public business directory"}
+];
+const KEY="bikepark-mm-user-v1", GEO="bikepark-mm-geocache-v1";
+let userData=JSON.parse(localStorage.getItem(KEY)||"[]"), geoCache=JSON.parse(localStorage.getItem(GEO)||"{}");
+let places=[...seed,...userData], filter="all", markers={}, markerLayer, selected=null, routeLayer=null, routeDestination=null;
+const map=L.map("map").setView([14.5794,121.0244],11);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+markerLayer=L.layerGroup().addTo(map);
+const $=id=>document.getElementById(id);
+const iconFor=p=>p.type==="parking"?"🅿️":(p.services||[]).includes("rental")?"🚲":"🔧";
+function status(p){if(p.type!=="parking")return "Bike shop";if(p.available===null||p.available===undefined)return "Availability unknown";if(+p.available===0)return "Full";return `${p.available} available`;}
+function tagClass(p){if(p.type!=="parking")return "shop";if(p.available===null||p.available===undefined)return "unknown";return +p.available===0?"full":"some";}
+function filtered(){let q=$("search").value.toLowerCase().trim();return places.filter(p=>(filter==="all"||filter==="parking"&&p.type==="parking"||filter==="shop"&&p.type==="shop"||filter==="repair"&&(p.services||[]).includes("repair")||filter==="rental"&&(p.services||[]).includes("rental"))&&(!q||[p.name,p.address,p.city,(p.services||[]).join(" ")].join(" ").toLowerCase().includes(q)));}
+function render(){let arr=filtered();$("countAll").textContent=places.length;$("countParking").textContent=places.filter(p=>p.type==="parking").length;$("countShops").textContent=places.filter(p=>p.type==="shop").length;
+$("results").innerHTML=arr.length?arr.map(p=>`<div class="item" data-id="${p.id}"><div class="item-top"><strong>${iconFor(p)} ${esc(p.name)}</strong><span class="tag ${tagClass(p)}">${esc(status(p))}</span></div><p>${esc(p.address)}</p><span class="hint">${p.type==="parking"?(p.fee||"Fee not confirmed"):(p.services||["retail"]).join(" · ")}</span></div>`).join(""):`<div class="empty">No matching locations. Try another search or add a place.</div>`;
+document.querySelectorAll(".item").forEach(el=>el.onclick=()=>selectPlace(el.dataset.id));drawMarkers(arr);}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function markerColor(p){return p.type==="parking"?"#168553":"#5369c5";}
+function drawMarkers(arr){markerLayer.clearLayers();markers={};arr.forEach(p=>{let g=geoCache[p.id];if(!g)return;let m=L.circleMarker([g.lat,g.lon],{radius:8,color:"#fff",weight:2,fillColor:markerColor(p),fillOpacity:1}).addTo(markerLayer);m.bindPopup(`<div class="popup-title">${iconFor(p)} ${esc(p.name)}</div><div>${esc(p.address)}</div><div><b>${esc(status(p))}</b></div><button onclick="window.showPlace('${p.id}')">View details</button>`);m.on("click",()=>{selected=p.id;highlightItem(p.id)});markers[p.id]=m;});}
+function highlightItem(id){document.querySelectorAll(".item").forEach(el=>el.style.background=el.dataset.id===id?"#edf7f1":"");}
+window.showPlace=selectPlace;
+function selectPlace(id){let p=places.find(x=>x.id===id);if(!p)return;selected=id;highlightItem(id);let g=geoCache[id];if(g){map.setView([g.lat,g.lon],16);if(markers[id])markers[id].openPopup();}
+openModal(p);}
+function openModal(p){$("modalTitle").textContent=p.name;$("modalSub").textContent=p.address;$("modalBody").innerHTML=`
+ <div style="margin:13px 0;display:flex;gap:7px;flex-wrap:wrap"><span class="tag ${tagClass(p)}">${esc(status(p))}</span><span class="tag">${p.type==="parking"?"Bicycle parking":"Bicycle business"}</span>${p.verified?'<span class="tag">Directory listing</span>':'<span class="tag unknown">Community added · unverified</span>'}</div>
+ ${p.type==="parking"?`<div class="hint">Parking fee: ${esc(p.fee||"Not confirmed")}</div><div class="hint">Capacity: ${p.capacity??"Not provided"} · Available: ${p.available??"Unknown"}</div><div class="hint">Last report: ${p.updatedAt?new Date(p.updatedAt).toLocaleString():"No availability report yet"}</div><button class="primary" style="margin-top:12px" onclick="window.report('${p.id}')">Report available slots</button>`:`<div class="hint">Services: ${esc((p.services||["retail"]).join(", "))}</div>${p.addressPending?'<div class="hint" style="color:#9b640d">Exact street address not confirmed. Use Google Maps search or contact the shop before visiting.</div>':""}<div class="hint">Phone: ${esc(p.phone||"Not listed")}</div>`}
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="primary" onclick="window.showRouteOptions('${p.id}')">Show directions in map</button><a class="btn light" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name+", "+p.address)}">Open Google Maps ↗</a>${p.phone?`<a class="btn light" href="tel:${p.phone.replace(/[^+0-9]/g,"")}">Call</a>`:""}<button class="light" onclick="window.copyAddress('${p.id}')">Copy address</button></div>
+ <div class="hint" style="margin-top:13px">Map location is geocoded from the address and may need confirmation. Call or message the business before travelling.</div>`;$("modalBack").style.display="flex";}
+
+let routePickMode=false, routeStartMarker=null;
+window.showRouteOptions=id=>{
+ const p=places.find(x=>x.id===id); if(!p)return;
+ const body=$("modalBody");let panel=$("routePanel");
+ if(!panel){panel=document.createElement("div");panel.id="routePanel";panel.className="route-panel";body.appendChild(panel);}
+ panel.innerHTML=`<b>Route to ${esc(p.name)}</b>
+ <label style="display:block;margin-top:9px">Travel mode</label>
+ <select id="routeMode"><option value="cycling">Bicycle</option><option value="walking">Walking</option><option value="driving">Driving</option></select>
+ <div class="route-meta" id="routeStatus">Choose how to set your starting point.</div>
+ <button class="primary" style="width:100%;margin:4px 0" onclick="window.buildRoute('${p.id}')">Use my location & show route</button>
+ <div style="margin-top:10px;font-size:12px;font-weight:700">Or set starting point manually</div>
+ <input id="manualStart" placeholder="Enter address, landmark or city" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin:6px 0;font:inherit;font-size:13px" />
+ <button class="light" style="width:100%;margin:3px 0" onclick="window.routeFromAddress('${p.id}')">Route from entered address</button>
+ <button class="light" style="width:100%;margin:3px 0" onclick="window.enableMapStart('${p.id}')">Choose starting point on map</button>
+ <div id="routeDetails"></div>`;
+};
+window.buildRoute=async id=>{
+ const status=$("routeStatus"),details=$("routeDetails");status.textContent="Getting your current location…";details.innerHTML="";
+ if(!navigator.geolocation){status.textContent="GPS is unavailable here. Enter an address or choose a point on the map instead.";return;}
+ navigator.geolocation.getCurrentPosition(pos=>window.routeFromCoordinates(id,[pos.coords.longitude,pos.coords.latitude]),err=>{
+  status.textContent=(err.code===1?"Location permission denied. ":"Could not get your location. ")+"You can still enter a starting address or choose a point directly on the map.";
+ },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+};
+window.routeFromAddress=async id=>{
+ const status=$("routeStatus"),address=$("manualStart")?.value.trim();if(!address){status.textContent="Enter a starting address or landmark first.";return;}
+ status.textContent="Finding your starting address…";
+ try{const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q="+encodeURIComponent(address+", Metro Manila, Philippines"),{headers:{"Accept-Language":"en"}});const a=await r.json();if(!a.length)throw new Error("Starting address not found. Try a nearby landmark or a more complete address.");await window.routeFromCoordinates(id,[+a[0].lon,+a[0].lat]);}
+ catch(e){status.textContent=e.message||"Could not find that address. Try another landmark.";}
+};
+window.enableMapStart=id=>{
+ routePickMode=true;$("routeStatus").textContent="Tap your starting point anywhere on the map. The route will be calculated from that point.";
+ $("modalBack").style.display="none";map.getContainer().style.cursor="crosshair";
+};
+map.on("click",e=>{
+ if(!routePickMode)return;routePickMode=false;map.getContainer().style.cursor="";
+ const id=selected;if(!id){alert("Select a destination first, then choose a starting point.");return;}
+ window.routeFromCoordinates(id,[e.latlng.lng,e.latlng.lat]);
+});
+window.routeFromCoordinates=async(id,origin)=>{
+ const p=places.find(x=>x.id===id);if(!p)return;
+ const status=$("routeStatus"),details=$("routeDetails");if(!status||!details)return;
+ status.textContent="Calculating route…";details.innerHTML="";
+ try{
+  let dest=geoCache[id];if(!dest){await geocodeOne(p);dest=geoCache[id];}
+  if(!dest)throw new Error("Destination location not found. Please confirm its address.");
+  const mode=$("routeMode").value;let route,instructions=[];
+  if(mode==="cycling"){
+   // Try multiple BRouter profiles so a temporary profile/service failure does not immediately break cycling directions.
+   const profiles=["trekking","fastbike","safety"];
+   let lastError=null, feature=null;
+   for(const profileName of profiles){
+    try{
+     const url="https://brouter.de/brouter?lonlats="+origin.join(",")+","+dest.lon+","+dest.lat+"&profile="+profileName+"&alternativeidx=0&format=geojson";
+     const response=await fetch(url,{headers:{"Accept":"application/geo+json,application/json"}});
+     if(!response.ok)throw new Error("BRouter returned HTTP "+response.status);
+     const data=await response.json();
+     feature=data.features?.[0];
+     if(!feature)throw new Error("No bicycle route returned for this profile");
+     break;
+    }catch(err){lastError=err;}
+   }
+   if(!feature)throw new Error("Bicycle routing is temporarily unavailable. Please try again later or use Open Google Maps for cycling directions. "+(lastError?.message||""));
+   route={coords:feature.geometry.coordinates.map(c=>[c[1],c[0]]),distance:feature.properties["track-length"]||feature.properties["total-distance"]||0,time:feature.properties["total-time"]||0};
+  }else{
+   const profile=mode==="walking"?"routed-foot":"routed-car";
+   const url=`https://routing.openstreetmap.de/${profile}/route/v1/driving/${origin.join(",")};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
+   const response=await fetch(url);if(!response.ok)throw new Error("Route service is unavailable. Please try again.");
+   const data=await response.json();if(data.code!=="Ok"||!data.routes?.length)throw new Error("No route found for these points.");
+   const r=data.routes[0];route={coords:r.geometry.coordinates.map(c=>[c[1],c[0]]),distance:r.distance,time:r.duration};
+   for(const leg of r.legs||[])for(const step of leg.steps||[]){const name=step.name?" on "+step.name:"";instructions.push((step.maneuver?.type||"Continue")+(step.maneuver?.modifier?" "+step.maneuver.modifier:"")+name);}
+  }
+  if(routeLayer)map.removeLayer(routeLayer);
+  routeLayer=L.layerGroup().addTo(map);
+  L.polyline(route.coords,{color:"#1674d1",weight:6,opacity:.9}).addTo(routeLayer);
+  if(routeStartMarker)map.removeLayer(routeStartMarker);
+  routeStartMarker=L.circleMarker([origin[1],origin[0]],{radius:8,color:"#fff",weight:2,fillColor:"#168553",fillOpacity:1}).addTo(map).bindPopup("Route starting point");
+  map.fitBounds(L.latLngBounds(route.coords),{padding:[30,30]});
+  status.innerHTML=`<span class="route-line">Route shown on map</span> · ${(route.distance/1000).toFixed(1)} km · about ${Math.max(1,Math.round(route.time/60))} min`;
+  details.innerHTML=instructions.length?`<b>Turn-by-turn steps</b><ol class="route-steps">${instructions.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:`<div class="hint">Bicycle route shown on map. Follow the mapped path and local traffic signs. Detailed cycling turn instructions are not available from this route service.</div>`;
+  $("modalBack").style.display="flex";
+ }catch(e){status.textContent=e.message||"Could not build route. Please try again.";$("modalBack").style.display="flex";}
+};
+window.copyAddress=id=>{let p=places.find(x=>x.id===id);navigator.clipboard?.writeText(p.address);};
+window.report=id=>{let p=places.find(x=>x.id===id);$("modalTitle").textContent="Report parking availability";$("modalSub").textContent=p.name;$("modalBody").innerHTML=`<div class="hint">Please report what you see at the location. This update is saved on this device in this prototype.</div><label>Total capacity (optional)</label><input id="rCap" type="number" min="0" placeholder="e.g. 20" value="${p.capacity??""}"/><label>Available slots</label><input id="rAvail" type="number" min="0" placeholder="e.g. 4" value="${p.available??""}"/><label>Notes (optional)</label><textarea id="rNote" placeholder="e.g. rack near the main entrance"></textarea><div class="modal-actions"><button class="light" onclick="window.openDetails('${id}')">Cancel</button><button class="primary" onclick="window.saveReport('${id}')">Submit report</button></div>`;};
+window.openDetails=id=>openModal(places.find(p=>p.id===id));
+window.saveReport=id=>{let p=places.find(x=>x.id===id),cap=$("rCap").value,avail=$("rAvail").value;if(avail===""||+avail<0||cap!==""&&(+cap<0||+avail>+cap)){alert("Enter a valid available-slot count. Available slots cannot exceed capacity.");return;}p.capacity=cap===""?null:+cap;p.available=+avail;p.updatedAt=new Date().toISOString();p.note=$("rNote").value;save();render();openModal(p);};
+function save(){localStorage.setItem(KEY,JSON.stringify(userData));}
+function openAdd(){ $("modalTitle").textContent="Add a cycling location";$("modalSub").textContent="Suggest a parking facility, bike shop, repair shop or rental location.";$("modalBody").innerHTML=`<label>Place name *</label><input id="newName" placeholder="e.g. Community Bike Hub"/><label>Category *</label><select id="newType"><option value="parking">Bike parking</option><option value="shop">Bike shop</option></select><label>Services (for bike shops)</label><select id="newServices"><option value="retail">Bike sales / accessories</option><option value="repair">Repair and maintenance</option><option value="retail,repair">Retail + repair</option><option value="rental">Bike rental</option></select><label>Full address *</label><textarea id="newAddress" placeholder="Street, barangay, city, Metro Manila"></textarea><label>Phone (optional)</label><input id="newPhone" placeholder="+63..."/><label>Parking fee (optional)</label><input id="newFee" placeholder="Free / ₱50 per 3 hours"/><div class="modal-actions"><button class="light" onclick="window.closeModal()">Cancel</button><button class="primary" onclick="window.addPlace()">Submit location</button></div>`;$("modalBack").style.display="flex";}
+window.closeModal=()=>$("modalBack").style.display="none";
+window.addPlace=()=>{let name=$("newName").value.trim(),type=$("newType").value,address=$("newAddress").value.trim();if(!name||!address){alert("Please enter a place name and full address.");return;}let p={id:"u"+Date.now(),type,name,address,city:address.split(",").slice(-3,-2)[0]?.trim()||"Metro Manila",services:type==="shop"?$("newServices").value.split(","):[],phone:$("newPhone").value.trim(),fee:$("newFee").value.trim(),capacity:null,available:null,verified:false,createdAt:new Date().toISOString()};userData.push(p);places.push(p);save();render();closeModal();geocodeOne(p,true);};
+function geocodeOne(p,zoom=false){if(p.addressPending||geoCache[p.id])return Promise.resolve();return fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q="+encodeURIComponent(p.address),{headers:{"Accept-Language":"en"}}).then(r=>r.json()).then(a=>{if(a&&a[0]){geoCache[p.id]={lat:+a[0].lat,lon:+a[0].lon};localStorage.setItem(GEO,JSON.stringify(geoCache));if(zoom)map.setView([+a[0].lat,+a[0].lon],16);render();}}).catch(()=>{});}
+let geoRunning=false;
+async function geocodeMissing(){if(geoRunning)return;geoRunning=true;let todo=places.filter(p=>!geoCache[p.id]);let done=0;for(let p of todo){$("mapStatus").textContent=`Locating map pins… ${done}/${todo.length}`;await geocodeOne(p);done++;await new Promise(r=>setTimeout(r,1100));}$("mapStatus").textContent=`${Object.keys(geoCache).length} locations mapped · select a pin`;geoRunning=false;render();}
+document.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");filter=b.dataset.filter;render();});
+$("search").oninput=render;$("addBtn").onclick=openAdd;$("closeModal").onclick=window.closeModal;$("modalBack").onclick=e=>{if(e.target===$("modalBack"))window.closeModal();};
+$("locateBtn").onclick=()=>{if(!navigator.geolocation){alert("Location is not available in this browser.");return;}navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],15);L.circleMarker([pos.coords.latitude,pos.coords.longitude],{radius:9,color:"#fff",weight:2,fillColor:"#e24b4b",fillOpacity:1}).addTo(map).bindPopup("You are here").openPopup();},()=>alert("Could not get your location. Check browser location permission."));};
+$("adminBtn").onclick=()=>{$("modalTitle").textContent="Manage local prototype data";$("modalSub").textContent="This is a local-only administrator view; changes are saved in this browser, not shared with other users.";let added=userData.length;$("modalBody").innerHTML=`<div class="stats"><div class="stat"><b>${places.length}</b><span>TOTAL PLACES</span></div><div class="stat"><b>${added}</b><span>USER-ADDED</span></div><div class="stat"><b>${places.filter(p=>p.type==="parking"&&p.available!==null).length}</b><span>REPORTED PARKING</span></div></div><p class="hint" style="margin-top:14px">For a public launch, connect a shared database and authenticated admin accounts. Local browser storage is only for testing.</p><button class="light" onclick="window.exportData()">Export locations (JSON)</button> <button class="danger" onclick="window.resetUserData()">Clear user-added data</button>`;$("modalBack").style.display="flex";};
+window.exportData=()=>{let blob=new Blob([JSON.stringify(places,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="bikepark-metro-manila-data.json";a.click();URL.revokeObjectURL(a.href);};
+window.resetUserData=()=>{if(confirm("Delete all locations and reports added in this browser?")){userData=[];places=[...seed];localStorage.removeItem(KEY);render();window.closeModal();}};
+render();geocodeMissing();
+</script>
+</body>
+</html>
